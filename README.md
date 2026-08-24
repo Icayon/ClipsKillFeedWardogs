@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 <img src="assets/app_icon.png" width="120" alt="Clips KillFeed Wardogs Logo">
 
@@ -32,6 +32,10 @@
   - Vertical 9:16 (optimizado para TikTok, Shorts y Reels con fondo desenfocado).
   - Montaje unificado (Supercut que une todas las bajas en un único archivo).
 - **Panel de configuración**: Ajuste de tiempos antes/después de la baja, selección de carpeta de destino por defecto y conmutador entre aceleración GPU (NVIDIA CUDA / NVENC) o procesamiento por CPU.
+
+### Videotutorial de descarga y uso
+Consulta el videotutorial paso a paso sobre cómo descargar y utilizar la aplicación:
+▶️ **[Ver Videotutorial en YouTube](https://www.youtube.com/watch?v=N1zDkbXuyVE)**
 
 ### Instrucciones de uso
 
@@ -74,6 +78,10 @@ Este proyecto está bajo la Licencia MIT. Se autoriza el uso, modificación y di
   - 9:16 Vertical (formatted for TikTok, Shorts, and Reels with cinematic background blur).
   - Supercut Montage (merges all detected kills into a single sequential video).
 - **Settings Panel**: Custom lead-in/lead-out durations, default output directory selection, and hardware acceleration toggle (NVIDIA CUDA / NVENC or CPU fallback).
+
+### Video Tutorial
+Watch the step-by-step video guide on how to download and use the application:
+▶️ **[Watch Video Tutorial on YouTube](https://www.youtube.com/watch?v=N1zDkbXuyVE)**
 
 ### Getting Started
 

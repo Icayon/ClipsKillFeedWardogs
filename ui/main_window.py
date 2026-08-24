@@ -526,8 +526,15 @@ class AutoClipWardogsApp(ctk.CTk):
         if not self.all_kills_data:
             messagebox.showwarning("Atención", "No hay datos de bajas para exportar.")
             return
-        report_path = HtmlReporter.generate_report(self.all_kills_data, self.default_out_dir)
         try:
-            os.startfile(report_path)
-        except Exception:
-            subprocess.Popen(f'explorer "{os.path.abspath(report_path)}"', creationflags=NO_WINDOW_FLAGS)
+            report_path = HtmlReporter.generate_report(self.all_kills_data, self.default_out_dir)
+            if report_path and os.path.exists(report_path):
+                import webbrowser
+                try:
+                    webbrowser.open(f"file:///{os.path.abspath(report_path).replace(chr(92), '/')}")
+                except Exception:
+                    os.startfile(report_path)
+            else:
+                show_error(self, "ERR-006", "No se pudo generar el archivo del informe HTML.")
+        except Exception as e:
+            show_error(self, "ERR-010", str(e))
