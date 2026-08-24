@@ -1,6 +1,6 @@
 ﻿<div align="center">
 
-<img src="assets/app_icon.png" width="130" alt="Clips KillFeed Wardogs Logo">
+<img src="assets/app_icon.png" width="135" alt="Clips KillFeed Wardogs Logo">
 
 # 🎯 Clips KillFeed Wardogs
 ### *Creado por ICayon*
@@ -19,35 +19,34 @@
 
 ## 🇪🇸 Español
 
-### ¿De qué va esto?
-Si juegas o haces streams de **Wardogs** y estás harto de perder 4 horas revisando grabaciones de OBS para sacar un par de jugadas, esto es para ti.
+### 🎮 ¿Qué es Clips KillFeed Wardogs?
+Si juegas o haces streams de **Wardogs** y estás harto de perder horas revisando grabaciones kilométricas de OBS para sacar tus mejores jugadas, esta herramienta lo hace todo por ti automáticamente.
 
-Esta herramienta escanea tus partidas usando Inteligencia Artificial local:
-- Encuentra exactamente en qué segundo matas a alguien en el Killfeed.
-- Mide la distancia de la baja (ej. [45m]).
-- Analiza el micrófono para ver si estabas gritando o celebrando la jugada y le mete ⭐⭐⭐⭐⭐ de Hype.
-- Te recorta el clip al momento en **16:9** (para vídeos normales) o en **9:16 vertical** (con el fondo desenfocado guapo para subir directo a **TikTok, Reels o Shorts**).
-- Puedes sacar los clips sueltos o que te monte un **vídeo recopilatorio (Montaje Supercut)** con todas las bajas seguidas.
+Escanea tus partidas mediante Inteligencia Artificial y OCR local:
+- 🎯 **Detección Automática de Bajas**: Localiza en qué segundo exacto eliminas a un enemigo en el Killfeed.
+- 📏 **Distancia de la Baja**: Mide y etiqueta la distancia (ej. [45m]).
+- 🎙️ **Detector de Hype y Gritos**: Analiza el audio de tu micrófono para puntuar con ⭐⭐⭐⭐⭐ los momentos más eufóricos.
+- 💎 **Calidad 100% Original**: Exporta conservando la resolución nativa y la tasa de bits exacta de tu grabación de OBS.
+- 📱 **Formatos 16:9 y 9:16 Shorts**: Genera clips panorámicos o verticales con fondo desenfocado listos para **TikTok, Reels y Shorts**.
+- 🎬 **Montajes Supercut**: Une todas tus mejores bajas en un único vídeo recopilatorio con 1 solo clic.
+- ⚙️ **Panel de Opciones Personalizable**: Elige tu carpeta de guardado en el disco C: (Descargas), ajusta los segundos antes/después de cada jugada y activa/desactiva la aceleración por GPU (NVIDIA CUDA / NVENC).
 
 ---
 
 ### 🚀 ¿Cómo se usa?
 
-#### 💻 Opción 1: Descargar y jugar (Sin tocar código) — *Recomendado*
-1. Vete a la sección de **[Releases](../../releases/latest)**.
-2. Bájate el archivo Clips KillFeed Wardogs (Portable).zip.
-3. Descomprímelo en tu PC y abre Clips KillFeed Wardogs.exe.
-4. *(Si Windows te saca la típica ventana azul de "Windows protegió su PC", dale a "Más información" y luego a "Ejecutar de todas formas")*.
+#### 💻 Opción 1: Versión Portable .EXE (Sin instalaciones — Recomendado)
+1. Ve a la sección de **[Releases](../../releases/latest)**.
+2. Descarga el archivo **Clips KillFeed Wardogs (Portable).zip**.
+3. Descomprímelo en cualquier carpeta de tu PC y abre **Clips KillFeed Wardogs.exe**.
+4. *(Si Windows muestra el aviso "Windows protegió su PC", haz clic en "Más información" y luego en "Ejecutar de todas formas")*.
 
 #### ⚡ Opción 2: Ejecutar con uv (Para desarrolladores)
-Este proyecto utiliza **[uv](https://github.com/astral-sh/uv)** como gestor de paquetes y dependencias ultra-rápido:
-
 `ash
-# 1. Clonar el repositorio
 git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
 cd Clips-KillFeed-Wardogs
 
-# 2. Ejecutar directamente (uv crea el entorno e instala dependencias en 1 segundo):
+# uv descarga las dependencias y lanza la app en 1 segundo:
 uv run AutoClip_AI.py
 `
 
@@ -55,15 +54,17 @@ uv run AutoClip_AI.py
 
 ## 🇬🇧 English
 
-### What is this?
-If you play or stream **Wardogs** and hate wasting 4 hours scrubbing through OBS recordings just to find a few highlights, this tool does the heavy lifting for you.
+### 🎮 What is Clips KillFeed Wardogs?
+If you play or stream **Wardogs** and hate wasting hours scrubbing through long OBS recordings to find your best highlights, this tool does the heavy lifting for you automatically.
 
-Using local AI, it:
-- Tracks your kills in the Killfeed in real time.
-- Measures kill distance (e.g. [45m]).
-- Listens to your mic audio peaks to score your voice hype and screams (⭐⭐⭐⭐⭐).
-- Auto-crops clips in **16:9 widescreen** or **9:16 vertical** (with cinematic background blur for **TikTok, Reels & Shorts**).
-- Lets you batch export or build a single **Supercut Montage** with all your kills merged.
+Powered by local AI and OCR:
+- 🎯 **Automatic Kill Detection**: Identifies the exact second you eliminate an enemy in the Killfeed.
+- 📏 **Kill Distance Tracking**: Reads and tags the engagement distance (e.g. [45m]).
+- 🎙️ **Audio Hype & Scream Detection**: Analyzes your microphone track to badge exciting plays with ⭐⭐⭐⭐⭐.
+- 💎 **100% Original Visual Quality**: Exports clips retaining your OBS recording's native resolution and bitrate.
+- 📱 **16:9 Landscape & 9:16 Shorts**: Creates standard widescreen clips or vertical videos with cinematic background blur ready for **TikTok, Reels & Shorts**.
+- 🎬 **Supercut Highlights Montage**: Merges all your kills into a single compilation video with 1 click.
+- ⚙️ **Custom Settings Panel**: Choose your default output directory on C: (Downloads), adjust pre/post kill timers, and toggle GPU acceleration (NVIDIA CUDA / NVENC) or CPU mode.
 
 ---
 
@@ -71,15 +72,15 @@ Using local AI, it:
 
 #### 💻 Option 1: Portable .EXE (No setup needed)
 1. Head over to **[Releases](../../releases/latest)**.
-2. Download Clips KillFeed Wardogs (Portable).zip.
-3. Unzip anywhere and double-click Clips KillFeed Wardogs.exe.
+2. Download **Clips KillFeed Wardogs (Portable).zip**.
+3. Unzip and double-click **Clips KillFeed Wardogs.exe**.
 
 #### ⚡ Option 2: Run from Source with uv
 `ash
 git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
 cd Clips-KillFeed-Wardogs
 
-# Run instantly (uv handles virtualenv and packages automatically):
+# Run instantly with uv:
 uv run AutoClip_AI.py
 `
 
@@ -92,4 +93,4 @@ uv run AutoClip_AI.py
 ---
 
 ## 📄 Licencia / License
-Puedes usar el código, editarlo, modificarlo y compartirlo libremente. La única condición es **mantener siempre los créditos y la mención original a ICayon**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+Este software se distribuye bajo licencia MIT. Se permite su uso, modificación y distribución con la **condición obligatoria de mantener siempre visible la autoría original y mención a ICayon**. Consulta el archivo [LICENSE](LICENSE) para más información.
