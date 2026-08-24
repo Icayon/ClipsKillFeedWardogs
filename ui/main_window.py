@@ -10,11 +10,12 @@ import customtkinter as ctk
 
 from utils.paths import get_binary_path, NO_WINDOW_FLAGS, init_windows_app_id
 from utils.config import load_config, save_config
+from utils.updater import check_github_release, CURRENT_VERSION
 from i18n import Translator
 from core import KillRecord, KillfeedScanner, ClipRenderer, HtmlReporter
 from .theme import BG_MAIN, CARD_BG, CARD_BORDER, ACCENT_BLUE, ACCENT_CYAN, TEXT_MUTED, TEXT_LIGHT
 from .components import AppHeader, QueuePanel, EventsTable, PreviewPanel
-from .modals import TutorialModal, SingleCutModal, BatchExportModal, SettingsModal, InfoModal, show_error
+from .modals import TutorialModal, SingleCutModal, BatchExportModal, SettingsModal, InfoModal, UpdateModal, show_error
 
 class AutoClipWardogsApp(ctk.CTk):
     def __init__(self):
@@ -35,6 +36,7 @@ class AutoClipWardogsApp(ctk.CTk):
         self.multikill_window = self.config.get("multikill_window", 15)
         self.group_multikills = self.config.get("group_multikills", True)
         self.auto_open = self.config.get("auto_open", True)
+        self.auto_check_updates = bool(self.config.get("auto_check_updates", True))
         
         self.title("Clips KillFeed Wardogs by ICayon")
         self.geometry("1280x870")
@@ -55,6 +57,35 @@ class AutoClipWardogsApp(ctk.CTk):
         self._setup_ui()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         
+        # Comprobar actualizaciones automáticamente tras 1.5s
+        self.after(1500, self._check_updates_on_startup)
+        
+    def _check_updates_on_startup(self):
+        if self.auto_check_updates:
+            threading.Thread(target=self._check_updates_thread, daemon=True).start()
+
+    def _check_updates_thread(self):
+        res = check_github_release()
+        if res.get("has_update"):
+            ignored = self.config.get("ignored_update_tag", "")
+            if res.get("latest_tag") != ignored:
+                self.after(0, lambda: self._show_startup_update_modal(res))
+
+    def _show_startup_update_modal(self, res: dict):
+        def on_never():
+            self.auto_check_updates = False
+            self.config["auto_check_updates"] = False
+            self.config["ignored_update_tag"] = res.get("latest_tag", "")
+            save_config(self.config)
+
+        UpdateModal(
+            self,
+            latest_tag=res["latest_tag"],
+            release_notes=res["release_notes"],
+            download_url=res["download_url"],
+            on_never=on_never
+        )
+
     def _setup_ui(self):
         # 1. Header
         self.header = AppHeader(
@@ -147,11 +178,12 @@ class AutoClipWardogsApp(ctk.CTk):
             current_multikill_window=self.multikill_window,
             current_group_multikills=self.group_multikills,
             current_auto_open=self.auto_open,
+            current_auto_check_updates=self.auto_check_updates,
             translator=self.t, 
             on_save=self._save_settings
         )
         
-    def _save_settings(self, new_dir, new_gpu, new_before, new_after, new_multi, new_group_multikills, new_auto_open):
+    def _save_settings(self, new_dir, new_gpu, new_before, new_after, new_multi, new_group_multikills, new_auto_open, new_auto_check_updates):
         self.default_out_dir = new_dir
         self.use_gpu = new_gpu
         self.sec_before = new_before
@@ -159,6 +191,7 @@ class AutoClipWardogsApp(ctk.CTk):
         self.multikill_window = new_multi
         self.group_multikills = new_group_multikills
         self.auto_open = new_auto_open
+        self.auto_check_updates = new_auto_check_updates
         
         # Guardar en archivo persistente
         self.config["default_out_dir"] = self.default_out_dir
@@ -168,6 +201,7 @@ class AutoClipWardogsApp(ctk.CTk):
         self.config["multikill_window"] = self.multikill_window
         self.config["group_multikills"] = self.group_multikills
         self.config["auto_open"] = self.auto_open
+        self.config["auto_check_updates"] = self.auto_check_updates
         save_config(self.config)
 
     def _change_language(self, choice):

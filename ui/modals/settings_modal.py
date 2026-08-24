@@ -1,8 +1,11 @@
-﻿import os
+import os
 import re
+import threading
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
 from .info_modal import InfoModal
+from .update_modal import UpdateModal
+from utils.updater import check_github_release, CURRENT_VERSION
 from ..theme import (
     BG_MAIN, CARD_BG, CARD_BORDER, INNER_BG, HOVER_BG, 
     ACCENT_CYAN, ACCENT_BLUE, ACCENT_BLUE_H, ACCENT_GREEN, 
@@ -12,7 +15,7 @@ from ..theme import (
 class SettingsModal(ctk.CTkToplevel):
     def __init__(self, parent, current_out_dir, current_gpu_mode, current_sec_before, 
                  current_sec_after, current_multikill_window, current_group_multikills,
-                 current_auto_open, translator, on_save):
+                 current_auto_open, current_auto_check_updates, translator, on_save):
         super().__init__(parent)
         self.t = translator
         self.current_out_dir = current_out_dir
@@ -22,10 +25,11 @@ class SettingsModal(ctk.CTkToplevel):
         self.current_multikill_window = current_multikill_window
         self.current_group_multikills = current_group_multikills
         self.current_auto_open = current_auto_open
+        self.current_auto_check_updates = current_auto_check_updates
         self.on_save = on_save
         
         self.title(self.t("settings_title"))
-        self.geometry("630x700")
+        self.geometry("630x760")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -163,6 +167,38 @@ class SettingsModal(ctk.CTkToplevel):
         chk_open.pack(side="left")
         self._create_help_btn(row_open, "help_auto_open_title", "help_auto_open_desc").pack(side="left", padx=6)
         
+        # 4. Actualizaciones del Sistema
+        card_update = ctk.CTkFrame(scroll, fg_color=CARD_BG, corner_radius=8, border_width=1, border_color=CARD_BORDER)
+        card_update.pack(fill="x", pady=6)
+        
+        row_upd_hdr = ctk.CTkFrame(card_update, fg_color="transparent")
+        row_upd_hdr.pack(fill="x", padx=16, pady=(12, 4))
+        ctk.CTkLabel(row_upd_hdr, text="Actualizaciones del sistema", font=ctk.CTkFont(size=12, weight="bold"), text_color=TEXT_WHITE).pack(side="left")
+        
+        self.auto_check_var = ctk.BooleanVar(value=self.current_auto_check_updates)
+        chk_autoupdate = ctk.CTkCheckBox(
+            card_update, text="Buscar actualizaciones al iniciar la aplicación", variable=self.auto_check_var,
+            font=ctk.CTkFont(size=11), text_color=TEXT_WHITE, fg_color=ACCENT_BLUE
+        )
+        chk_autoupdate.pack(anchor="w", padx=16, pady=(4, 8))
+        
+        upd_btn_row = ctk.CTkFrame(card_update, fg_color="transparent")
+        upd_btn_row.pack(fill="x", padx=16, pady=(0, 14))
+        
+        self.btn_check_now = ctk.CTkButton(
+            upd_btn_row, text="🔄 Buscar actualizaciones ahora", height=32,
+            fg_color=INNER_BG, hover_color=HOVER_BG, border_width=1, border_color=CARD_BORDER,
+            text_color=TEXT_WHITE, font=ctk.CTkFont(size=11, weight="bold"),
+            command=self._check_updates_now
+        )
+        self.btn_check_now.pack(side="left")
+        
+        self.lbl_upd_status = ctk.CTkLabel(
+            upd_btn_row, text=f"Versión actual: {CURRENT_VERSION}",
+            font=ctk.CTkFont(size=11), text_color=TEXT_MUTED
+        )
+        self.lbl_upd_status.pack(side="left", padx=12)
+
         # Botón Guardar
         ctk.CTkButton(
             self, text=self.t("settings_save"), height=38,
@@ -176,7 +212,39 @@ class SettingsModal(ctk.CTkToplevel):
         if d:
             self.ent_dir.delete(0, "end")
             self.ent_dir.insert(0, os.path.abspath(d))
-            
+
+    def _check_updates_now(self):
+        self.btn_check_now.configure(state="disabled")
+        self.lbl_upd_status.configure(text="Conectando con GitHub...")
+
+        def worker():
+            res = check_github_release()
+            self.after(0, lambda: self._handle_manual_update_res(res))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _handle_manual_update_res(self, res: dict):
+        self.btn_check_now.configure(state="normal")
+        self.lbl_upd_status.configure(text=f"Versión actual: {CURRENT_VERSION}")
+
+        if res.get("error"):
+            InfoModal(self, "Actualizaciones", f"No se pudo comprobar el servidor de actualizaciones:\n{res['error']}")
+            return
+
+        if res.get("has_update"):
+            UpdateModal(
+                self.master,
+                latest_tag=res["latest_tag"],
+                release_notes=res["release_notes"],
+                download_url=res["download_url"],
+                on_never=self._disable_auto_check
+            )
+        else:
+            InfoModal(self, "Sistema actualizado", f"¡Estás en la última versión disponible ({CURRENT_VERSION})!")
+
+    def _disable_auto_check(self):
+        self.auto_check_var.set(False)
+
     def _save_and_close(self):
         new_dir = os.path.abspath(self.ent_dir.get().strip() or self.current_out_dir)
         new_gpu = self.gpu_var.get()
@@ -201,7 +269,9 @@ class SettingsModal(ctk.CTkToplevel):
             
         new_group_multikills = (self.group_seg.get() == self.t("settings_group_cluster"))
         new_auto_open = self.auto_open_var.get()
+        new_auto_check_updates = self.auto_check_var.get()
         
         self.destroy()
         if self.on_save:
-            self.on_save(new_dir, new_gpu, new_before, new_after, new_multi, new_group_multikills, new_auto_open)
+            self.on_save(new_dir, new_gpu, new_before, new_after, new_multi, new_group_multikills, new_auto_open, new_auto_check_updates)
+

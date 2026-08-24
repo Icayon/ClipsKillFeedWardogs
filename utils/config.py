@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import sys
 
@@ -13,7 +13,9 @@ DEFAULT_CONFIG = {
     "auto_open": True,
     "detect_audio": True,
     "filter_beta": True,
-    "language": "es"
+    "language": "es",
+    "auto_check_updates": True,
+    "ignored_update_tag": ""
 }
 
 def get_config_path():
