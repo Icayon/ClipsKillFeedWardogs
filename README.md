@@ -41,7 +41,7 @@ La IA analiza tus vídeos, detecta cuándo eliminas a un enemigo en el Killfeed,
 #### Opción B: Ejecutar desde Código Fuente (Python)
 `ash
 # 1. Clonar repositorio
-git clone https://github.com/TU_USUARIO/Clips-KillFeed-Wardogs.git
+git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
 cd Clips-KillFeed-Wardogs
 
 # 2. Instalar dependencias
