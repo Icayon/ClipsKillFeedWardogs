@@ -1,4 +1,4 @@
-﻿import os
+import os
 import re
 import cv2
 import numpy as np
@@ -47,15 +47,21 @@ class KillfeedScanner:
         return any(t in full for t in wm_tokens)
 
     @staticmethod
-    def parse_killfeed_line(res_sorted: list, clean_gamertags: list) -> tuple:
-        texts = [r[1] for r in res_sorted]
+    def parse_killfeed_line(items: list, clean_gamertags: list) -> tuple:
+        texts = []
+        for r in items:
+            if isinstance(r, (list, tuple)) and len(r) >= 2:
+                texts.append(str(r[1]))
+            elif isinstance(r, str):
+                texts.append(r)
+
         line_str = " | ".join(texts)
         dist_match = re.search(r'\[?(\d+)\s*m\]?', line_str, re.IGNORECASE)
         distance = f"[{dist_match.group(1)}m]" if dist_match else "Distancia media"
-        
+
         killer = "Tu"
         victim = "Enemigo"
-        
+
         parts = [t.strip() for t in texts if t.strip()]
         if len(parts) >= 2:
             killer = parts[0]
@@ -64,7 +70,7 @@ class KillfeedScanner:
                 p_clean = re.sub(r'[^a-zA-Z0-9]', '', p.lower())
                 if any(tag in p_clean for tag in clean_gamertags):
                     killer = p
-                    
+
         return killer, distance, victim
 
     def scan_video(self, video_path: str, gamertags: list, detect_audio: bool, filter_beta: bool, 

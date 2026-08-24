@@ -10,7 +10,7 @@ import urllib.error
 from utils.paths import get_binary_path, NO_WINDOW_FLAGS
 
 REPO_API_URL = "https://api.github.com/repos/Icayon/ClipsKillFeedWardogs/releases"
-CURRENT_VERSION = "v0.2.0-beta"
+CURRENT_VERSION = "v0.2.0"
 
 
 def parse_version_tuple(v_str: str) -> tuple:
