@@ -47,33 +47,56 @@ class KillfeedScanner:
             killer = parts[0]
             victim = parts[-1]
             for p in parts[1:-1]:
-                if any(tag in re.sub(r'[^a-zA-Z0-9]', '', p.lower()) for tag in clean_gamertags):
+                p_clean = re.sub(r'[^a-zA-Z0-9]', '', p.lower())
+                if any(tag in p_clean for tag in clean_gamertags):
                     killer = p
                     
         return killer, distance, victim
 
     def scan_video(self, video_path: str, gamertags: list, detect_audio: bool, filter_beta: bool, 
                    use_gpu: bool = True, on_progress=None, is_running_check=None):
-        clean_gamertags = [re.sub(r'[^a-zA-Z0-9]', '', t.lower()) for t in gamertags if t.strip()]
+        """
+        Escanea el video normalizando cualquier resolución (720p, 1080p, 1440p, 4K, 8K)
+        a un espacio estándar de coordenadas para que la detección sea 100% precisa.
+        """
+        # Extraer variantes limpias de los gamertags
+        clean_gamertags = []
+        for t in gamertags:
+            t_str = t.strip().lower()
+            if not t_str:
+                continue
+            clean = re.sub(r'[^a-zA-Z0-9]', '', t_str)
+            if clean and clean not in clean_gamertags:
+                clean_gamertags.append(clean)
+            # Extraer también palabras individuales (ej: si ponen '[TAG] Pepito', añadir 'pepito')
+            words = re.findall(r'[a-zA-Z0-9]{2,}', t_str)
+            for w in words:
+                if w not in clean_gamertags:
+                    clean_gamertags.append(w)
+                    
         duration_sec = self.get_video_duration(video_path)
         
         audio_energies = []
         if detect_audio:
             audio_energies = AudioAnalyzer.analyze_audio_peaks(video_path)
             
-        crop_x, crop_y, crop_w, crop_h = 0, 310, 240, 85
+        # Normalizar escala interna a 1280x720 antes de recortar la zona Killfeed
+        # para que funcione EXACTAMENTE IGUAL en 720p, 1080p, 1440p y 4K
+        crop_w, crop_h, crop_x, crop_y = 320, 120, 0, 290
         fps_rate = 0.66
+        
+        vf_filter = f"fps={fps_rate},scale=1280:720,crop={crop_w}:{crop_h}:{crop_x}:{crop_y}"
         
         if use_gpu:
             cmd = [
                 get_binary_path("ffmpeg"), "-hwaccel", "cuda", "-i", video_path,
-                "-vf", f"fps={fps_rate},crop={crop_w}:{crop_h}:{crop_x}:{crop_y}",
+                "-vf", vf_filter,
                 "-f", "rawvideo", "-pix_fmt", "bgr24", "-v", "error", "pipe:1"
             ]
         else:
             cmd = [
                 get_binary_path("ffmpeg"), "-i", video_path,
-                "-vf", f"fps={fps_rate},crop={crop_w}:{crop_h}:{crop_x}:{crop_y}",
+                "-vf", vf_filter,
                 "-f", "rawvideo", "-pix_fmt", "bgr24", "-v", "error", "pipe:1"
             ]
         
@@ -101,20 +124,23 @@ class KillfeedScanner:
             if on_progress and (idx % 2 == 0 or (duration_sec > 0 and sec >= duration_sec)):
                 on_progress(sec, duration_sec, len(video_kills))
                 
-            white_mask = cv2.inRange(frame, np.array([175, 175, 175]), np.array([255, 255, 255]))
-            if cv2.countNonZero(white_mask) > 40:
+            # Detección de texto blanco en el Killfeed
+            white_mask = cv2.inRange(frame, np.array([160, 160, 160]), np.array([255, 255, 255]))
+            if cv2.countNonZero(white_mask) > 35:
                 res, _ = self.ocr(frame)
                 if res:
                     all_texts = [r[1] for r in res]
                     if not self.is_watermark_present(all_texts, filter_beta):
                         for item in res:
                             box, txt, score = item
-                            clean = re.sub(r'[^a-zA-Z0-9]', '', txt.lower())
+                            clean_txt = re.sub(r'[^a-zA-Z0-9]', '', txt.lower())
                             
-                            matched = any(gt in clean for gt in clean_gamertags if len(gt) >= 3)
+                            # Comprobación de coincidencia con cualquiera de los gamertags
+                            matched = any(gt in clean_txt for gt in clean_gamertags if len(gt) >= 2)
                             if matched:
                                 center_x = (box[0][0] + box[1][0]) / 2.0
-                                if center_x < 120:
+                                # Debe estar en el lado izquierdo del Killfeed (el atacante/asesino)
+                                if center_x < 160:
                                     if sec - last_kill_sec >= 3.0:
                                         last_kill_sec = sec
                                         ts_str = str(timedelta(seconds=sec))

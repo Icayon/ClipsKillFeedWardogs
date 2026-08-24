@@ -81,7 +81,7 @@ class QueuePanel(ctk.CTkFrame):
         ).pack(side="left", padx=6)
         
         self.ent_gamertags = ctk.CTkEntry(conf_box, placeholder_text="ej: ICayon, [ESP] ICayon", height=32, font=ctk.CTkFont(size=11), fg_color=INNER_BG, border_color=CARD_BORDER)
-        self.ent_gamertags.insert(0, "ICayon, [ESP] ICayon, ICayonh")
+        self.ent_gamertags.insert(0, "ICayon")
         self.ent_gamertags.pack(fill="x", pady=(0, 8))
         
         self.chk_detect_audio = ctk.CTkCheckBox(conf_box, text=self.t("audio_hype"), font=ctk.CTkFont(size=11), text_color=TEXT_WHITE, fg_color=ACCENT_BLUE)
