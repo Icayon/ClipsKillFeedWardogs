@@ -10,7 +10,7 @@ import urllib.error
 from utils.paths import get_binary_path, NO_WINDOW_FLAGS
 
 REPO_API_URL = "https://api.github.com/repos/Icayon/ClipsKillFeedWardogs/releases"
-CURRENT_VERSION = "v1.0.0"
+CURRENT_VERSION = "v1.0.1"
 
 
 def parse_version_tuple(v_str: str) -> tuple:
@@ -94,11 +94,10 @@ def check_github_release(current_version: str = CURRENT_VERSION) -> dict:
 
 def launch_updater_script(downloaded_file: str, target_dir: str):
     """
-    Crea y ejecuta un script PowerShell/Batch desvinculado que:
-    1. Espera a que el proceso actual de la app finalice (vía PID).
-    2. Si es ZIP, lo descomprime reemplazando los archivos en target_dir.
-    3. Si es EXE, reemplaza el ejecutable en target_dir.
-    4. Reinicia la aplicación.
+    Crea y ejecuta un script PowerShell desvinculado que:
+    1. Espera a que el proceso actual (PID) se cierre por completo.
+    2. Descomprime y copia los nuevos archivos a target_dir con bucle de reintentos.
+    3. Reinicia la aplicación.
     """
     current_pid = os.getpid()
     exe_name = "Clips KillFeed Wardogs.exe"
@@ -108,43 +107,71 @@ def launch_updater_script(downloaded_file: str, target_dir: str):
     script_path = os.path.join(temp_dir, "run_update.ps1")
 
     is_zip = downloaded_file.lower().endswith(".zip")
-    
-    if is_zip:
-        extract_folder = os.path.join(temp_dir, "extracted_update")
-        ps_script = f"""
-# Esperar a que cierre el proceso principal
-Wait-Process -Id {current_pid} -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+    extract_folder = os.path.join(temp_dir, "extracted_update")
 
-# Descomprimir actualización
-Expand-Archive -Path "{downloaded_file}" -DestinationPath "{extract_folder}" -Force
+    ps_script = f"""$ErrorActionPreference = "Stop"
+$logFile = "$env:TEMP\\clip_updater.log"
+"Iniciando actualización: $(Get-Date)" | Out-File $logFile -Encoding utf-8
 
-# Copiar archivos sobre la carpeta destino
-$sourcePath = "{extract_folder}"
-if (Test-Path "$extract_folder\\Clips.KillFeed.Wardogs.Portable") {{
-    $sourcePath = "$extract_folder\\Clips.KillFeed.Wardogs.Portable"
-}} elseif (Test-Path "$extract_folder\\Clips KillFeed Wardogs") {{
-    $sourcePath = "$extract_folder\\Clips KillFeed Wardogs"
+try {{
+    # 1. Esperar a que el proceso principal cierre completamente (máximo 15s)
+    $targetPid = {current_pid}
+    "Esperando cierre del proceso PID: $targetPid" | Out-File $logFile -Append
+    for ($i = 0; $i -lt 15; $i++) {{
+        $p = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
+        if (-not $p) {{ break }}
+        Start-Sleep -Seconds 1
+    }}
+    Start-Sleep -Seconds 2
+
+    # 2. Descomprimir si es un archivo ZIP
+    $src = "{downloaded_file}"
+    if ("{str(is_zip).lower()}" -eq "true") {{
+        "Descomprimiendo {downloaded_file}..." | Out-File $logFile -Append
+        if (Test-Path "{extract_folder}") {{ Remove-Item "{extract_folder}" -Recurse -Force -ErrorAction SilentlyContinue }}
+        Expand-Archive -Path "{downloaded_file}" -DestinationPath "{extract_folder}" -Force
+
+        $src = "{extract_folder}"
+        if (Test-Path "{extract_folder}\\Clips.KillFeed.Wardogs.Portable") {{
+            $src = "{extract_folder}\\Clips.KillFeed.Wardogs.Portable"
+        }} elseif (Test-Path "{extract_folder}\\Clips KillFeed Wardogs") {{
+            $src = "{extract_folder}\\Clips KillFeed Wardogs"
+        }}
+    }}
+
+    "Carpeta origen: $src" | Out-File $logFile -Append
+    "Carpeta destino: {target_dir}" | Out-File $logFile -Append
+
+    # 3. Copiar archivos a la carpeta de destino con bucle de reintentos
+    $copied = $false
+    for ($attempt = 1; $attempt -le 10; $attempt++) {{
+        try {{
+            if ("{str(is_zip).lower()}" -eq "true") {{
+                Copy-Item -Path "$src\\*" -Destination "{target_dir}" -Recurse -Force -ErrorAction Stop
+            }} else {{
+                Copy-Item -Path "$src" -Destination "{target_exe}" -Force -ErrorAction Stop
+            }}
+            $copied = $true
+            "Reemplazo correcto en intento $attempt" | Out-File $logFile -Append
+            break
+        }} catch {{
+            "Intento $attempt fallido (archivo bloqueado): $_" | Out-File $logFile -Append
+            Start-Sleep -Seconds 1
+        }}
+    }}
+
+    # 4. Reiniciar la aplicación
+    Start-Sleep -Seconds 1
+    "Iniciando ejecutable: {target_exe}" | Out-File $logFile -Append
+    Start-Process -FilePath "{target_exe}"
+}} catch {{
+    "ERROR CRITICO DE ACTUALIZACION: $_" | Out-File $logFile -Append
 }}
-
-Copy-Item -Path "$sourcePath\\*" -Destination "{target_dir}" -Recurse -Force
-
-# Reiniciar la aplicación
-Start-Process -FilePath "{target_exe}"
-"""
-    else:
-        ps_script = f"""
-Wait-Process -Id {current_pid} -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-
-Copy-Item -Path "{downloaded_file}" -Destination "{target_exe}" -Force
-Start-Process -FilePath "{target_exe}"
 """
 
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(ps_script)
 
-    # Lanzar PowerShell en segundo plano independiente
     cmd = [
         "powershell.exe",
         "-NoProfile",
@@ -152,6 +179,4 @@ Start-Process -FilePath "{target_exe}"
         "-File", script_path
     ]
     subprocess.Popen(cmd, creationflags=NO_WINDOW_FLAGS | subprocess.CREATE_NEW_PROCESS_GROUP)
-    
-    # Cerrar proceso de la app inmediatamente para permitir el reemplazo
     sys.exit(0)

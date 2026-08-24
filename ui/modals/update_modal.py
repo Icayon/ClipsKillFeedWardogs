@@ -49,7 +49,7 @@ class UpdateModal(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             top_hdr,
-            text=f"🚀 Nueva actualización disponible ({self.latest_tag})",
+            text=f"Nueva versión disponible ({self.latest_tag})",
             font=ctk.CTkFont(family="Segoe UI", size=13, weight="bold"),
             text_color=ACCENT_CYAN
         ).pack(side="left", padx=20, pady=12)
@@ -61,7 +61,7 @@ class UpdateModal(ctk.CTkToplevel):
         # Contenedor para las notas del parche
         lbl_notes_hdr = ctk.CTkLabel(
             body,
-            text="Novedades y cambios de esta versión:",
+            text="Notas de la versión:",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             text_color=TEXT_WHITE,
             anchor="w"
@@ -84,7 +84,7 @@ class UpdateModal(ctk.CTkToplevel):
         # Recordatorio informativo
         self.lbl_hint = ctk.CTkLabel(
             body,
-            text="💡 Podrás actualizar más adelante en Ajustes en cualquier momento.",
+            text="Puedes revisar o instalar esta actualización más adelante desde Ajustes.",
             font=ctk.CTkFont(family="Segoe UI", size=10, slant="italic"),
             text_color=TEXT_MUTED,
             anchor="w"
@@ -114,7 +114,7 @@ class UpdateModal(ctk.CTkToplevel):
         # Botón 1: Actualizar ahora
         self.btn_update = ctk.CTkButton(
             self.btn_box,
-            text="⚡ Actualizar ahora",
+            text="Actualizar ahora",
             font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
             fg_color=ACCENT_GREEN,
             hover_color=ACCENT_GREEN_H,
@@ -128,7 +128,7 @@ class UpdateModal(ctk.CTkToplevel):
         # Botón 2: Recordar más tarde
         self.btn_later = ctk.CTkButton(
             self.btn_box,
-            text="Recordar luego",
+            text="Más tarde",
             font=ctk.CTkFont(family="Segoe UI", size=11),
             fg_color=INNER_BG,
             hover_color=HOVER_BG,
@@ -144,7 +144,7 @@ class UpdateModal(ctk.CTkToplevel):
         # Botón 3: No volver a avisar
         self.btn_never = ctk.CTkButton(
             self.btn_box,
-            text="No avisar más",
+            text="Desactivar avisos",
             font=ctk.CTkFont(family="Segoe UI", size=11),
             fg_color=INNER_BG,
             hover_color=HOVER_BG,
