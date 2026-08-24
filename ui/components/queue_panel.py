@@ -21,7 +21,6 @@ class QueuePanel(ctk.CTkFrame):
         self._build_ui()
         
     def _build_ui(self):
-        # Cabecera
         q_hdr = ctk.CTkFrame(self, fg_color="transparent")
         q_hdr.pack(fill="x", padx=16, pady=(16, 8))
         
@@ -39,7 +38,6 @@ class QueuePanel(ctk.CTkFrame):
         )
         btn_clear.pack(side="right")
         
-        # Botones añadir
         btn_box = ctk.CTkFrame(self, fg_color="transparent")
         btn_box.pack(fill="x", padx=16, pady=(0, 10))
         
@@ -59,11 +57,9 @@ class QueuePanel(ctk.CTkFrame):
         )
         self.btn_add_folder.pack(side="left", fill="x", expand=True)
         
-        # Scroll vídeos
         self.scroll_videos = ctk.CTkScrollableFrame(self, fg_color=INNER_BG, corner_radius=6, border_width=1, border_color=CARD_BORDER)
         self.scroll_videos.pack(fill="both", expand=True, padx=16, pady=(0, 12))
         
-        # Gamertag & Opciones
         conf_box = ctk.CTkFrame(self, fg_color="transparent")
         conf_box.pack(fill="x", padx=16, pady=(0, 12))
         
@@ -92,7 +88,6 @@ class QueuePanel(ctk.CTkFrame):
         self.chk_filter_beta.select()
         self.chk_filter_beta.pack(anchor="w", pady=2)
         
-        # Botones acción
         act_box = ctk.CTkFrame(self, fg_color="transparent")
         act_box.pack(fill="x", padx=16, pady=(0, 16))
         
@@ -115,18 +110,31 @@ class QueuePanel(ctk.CTkFrame):
     def add_folder(self):
         folder = filedialog.askdirectory(initialdir=r"E:\Videos OBS")
         if folder:
-            files = sorted(glob.glob(os.path.join(folder, "*.mp4")) + glob.glob(os.path.join(folder, "*.mkv")))
-            for f in files:
-                if f not in self.video_list and os.path.getsize(f) > 5 * 1024 * 1024:
-                    self.video_list.append(f)
+            valid_exts = {'.mp4', '.mkv', '.mov', '.avi', '.ts', '.m2ts', '.webm', '.flv'}
+            for root, _, files in os.walk(folder):
+                for f in sorted(files):
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in valid_exts:
+                        full_path = os.path.abspath(os.path.join(root, f))
+                        if full_path not in self.video_list and os.path.exists(full_path):
+                            self.video_list.append(full_path)
             self.refresh_video_list()
             
     def add_files(self):
-        files = filedialog.askopenfilenames(initialdir=r"E:\Videos OBS", filetypes=[("Videos", "*.mp4 *.mkv *.mov *.avi")])
+        files = filedialog.askopenfilenames(
+            initialdir=r"E:\Videos OBS",
+            filetypes=[
+                ("Todos los vídeos soportados", "*.mp4;*.mkv;*.mov;*.avi;*.ts;*.m2ts;*.webm;*.flv;*.MP4;*.MKV;*.MOV"),
+                ("Archivos MP4 (*.mp4)", "*.mp4;*.MP4"),
+                ("Archivos MKV (*.mkv)", "*.mkv;*.MKV"),
+                ("Todos los archivos (*.*)", "*.*")
+            ]
+        )
         if files:
             for f in files:
-                if f not in self.video_list:
-                    self.video_list.append(f)
+                full_path = os.path.abspath(f)
+                if full_path not in self.video_list and os.path.exists(full_path):
+                    self.video_list.append(full_path)
             self.refresh_video_list()
             
     def clear_videos(self):
@@ -143,27 +151,38 @@ class QueuePanel(ctk.CTkFrame):
             widget.destroy()
             
         if not self.video_list:
-            ctk.CTkLabel(
-                self.scroll_videos, text=self.t("empty_queue"), 
-                font=ctk.CTkFont(size=11), text_color=TEXT_MUTED
-            ).pack(pady=40)
+            lbl_empty = ctk.CTkLabel(
+                self.scroll_videos, 
+                text=self.t("empty_queue"),
+                font=ctk.CTkFont(size=11), 
+                text_color=TEXT_MUTED,
+                justify="center"
+            )
+            lbl_empty.pack(expand=True, pady=40)
+            self.lbl_queue_hdr.configure(text=self.t("queue_title"))
             return
             
+        self.lbl_queue_hdr.configure(text=f"{self.t('queue_title')} ({len(self.video_list)})")
+        
         for vpath in self.video_list:
             vname = os.path.basename(vpath)
-            size_mb = os.path.getsize(vpath) / (1024 * 1024)
-            row = ctk.CTkFrame(self.scroll_videos, fg_color=CARD_BG, corner_radius=4, border_width=1, border_color=CARD_BORDER)
-            row.pack(fill="x", pady=2, padx=2)
             
-            ctk.CTkLabel(row, text=f"{vname} ({size_mb:.1f} MB)", font=ctk.CTkFont(size=11), anchor="w", text_color=TEXT_WHITE).pack(side="left", padx=8, pady=4)
+            card = ctk.CTkFrame(self.scroll_videos, fg_color=CARD_BG, corner_radius=6, border_width=1, border_color=CARD_BORDER)
+            card.pack(fill="x", pady=3, padx=2)
             
-            ctk.CTkButton(
-                row, text="X", width=22, height=22, fg_color=INNER_BG, hover_color=ACCENT_RED,
-                text_color=TEXT_MUTED, corner_radius=3, command=lambda p=vpath: self.remove_video(p)
-            ).pack(side="right", padx=6)
+            lbl_name = ctk.CTkLabel(card, text=vname, font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_WHITE, anchor="w")
+            lbl_name.pack(side="left", fill="x", expand=True, padx=(10, 4), pady=8)
             
+            btn_del = ctk.CTkButton(
+                card, text="×", width=22, height=22,
+                fg_color="transparent", hover_color=HOVER_BG, text_color=TEXT_MUTED,
+                font=ctk.CTkFont(size=14), corner_radius=11,
+                command=lambda p=vpath: self.remove_video(p)
+            )
+            btn_del.pack(side="right", padx=(0, 6), pady=6)
+
     def refresh_texts(self):
-        self.lbl_queue_hdr.configure(text=self.t("queue_title"))
+        self.lbl_queue_hdr.configure(text=self.t("queue_title") if not self.video_list else f"{self.t('queue_title')} ({len(self.video_list)})")
         self.btn_add_files.configure(text=self.t("add_files"))
         self.btn_add_folder.configure(text=self.t("add_folder"))
         self.lbl_tracking.configure(text=self.t("tracking_label"))

@@ -1,7 +1,8 @@
-﻿import re
+﻿import os
+import re
 import cv2
-import subprocess
 import numpy as np
+import subprocess
 from datetime import timedelta
 from rapidocr_onnxruntime import RapidOCR
 from utils.paths import get_binary_path, NO_WINDOW_FLAGS
@@ -11,7 +12,7 @@ from .audio import AudioAnalyzer
 class KillfeedScanner:
     def __init__(self):
         self.ocr = RapidOCR()
-        
+
     @staticmethod
     def get_video_duration(video_path: str) -> int:
         try:
@@ -21,6 +22,18 @@ class KillfeedScanner:
             cap.release()
             if fps > 0 and frame_count > 0:
                 return int(frame_count / fps)
+        except Exception:
+            pass
+            
+        try:
+            cmd = [get_binary_path("ffmpeg"), "-i", video_path]
+            p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.DEVNULL, creationflags=NO_WINDOW_FLAGS)
+            _, err = p.communicate(timeout=4)
+            err_str = err.decode('utf-8', errors='ignore')
+            m = re.search(r'Duration:\s*(\d+):(\d+):(\d+\.?\d*)', err_str)
+            if m:
+                h, mi, s = int(m.group(1)), int(m.group(2)), float(m.group(3))
+                return int(h * 3600 + mi * 60 + s)
         except Exception:
             pass
         return 0
@@ -54,133 +67,120 @@ class KillfeedScanner:
         return killer, distance, victim
 
     def scan_video(self, video_path: str, gamertags: list, detect_audio: bool, filter_beta: bool, 
-                   use_gpu: bool = True, on_progress=None, is_running_check=None):
-        """
-        Escanea el video normalizando cualquier resolución (720p, 1080p, 1440p, 4K, 8K)
-        a un espacio estándar de coordenadas para que la detección sea 100% precisa.
-        """
-        # Extraer variantes limpias de los gamertags
-        clean_gamertags = []
-        for t in gamertags:
-            t_str = t.strip().lower()
-            if not t_str:
-                continue
-            clean = re.sub(r'[^a-zA-Z0-9]', '', t_str)
-            if clean and clean not in clean_gamertags:
-                clean_gamertags.append(clean)
-            # Extraer también palabras individuales (ej: si ponen '[TAG] Pepito', añadir 'pepito')
-            words = re.findall(r'[a-zA-Z0-9]{2,}', t_str)
-            for w in words:
-                if w not in clean_gamertags:
-                    clean_gamertags.append(w)
-                    
+                   use_gpu: bool = True, multi_window: int = 15, on_progress=None, on_kill_found=None, is_running_check=None):
+        clean_gamertags = [re.sub(r'[^a-zA-Z0-9]', '', t.lower()) for t in gamertags if t.strip()]
         duration_sec = self.get_video_duration(video_path)
         
         audio_energies = []
         if detect_audio:
             audio_energies = AudioAnalyzer.analyze_audio_peaks(video_path)
             
-        # Normalizar escala interna a 1280x720 antes de recortar la zona Killfeed
-        # para que funcione EXACTAMENTE IGUAL en 720p, 1080p, 1440p y 4K
-        crop_w, crop_h, crop_x, crop_y = 320, 120, 0, 290
+        crop_x, crop_y, crop_w, crop_h = 0, 310, 240, 85
         fps_rate = 0.66
-        
         vf_filter = f"fps={fps_rate},scale=1280:720,crop={crop_w}:{crop_h}:{crop_x}:{crop_y}"
         
-        if use_gpu:
-            cmd = [
-                get_binary_path("ffmpeg"), "-hwaccel", "cuda", "-i", video_path,
-                "-vf", vf_filter,
-                "-f", "rawvideo", "-pix_fmt", "bgr24", "-v", "error", "pipe:1"
-            ]
-        else:
-            cmd = [
-                get_binary_path("ffmpeg"), "-i", video_path,
-                "-vf", vf_filter,
-                "-f", "rawvideo", "-pix_fmt", "bgr24", "-v", "error", "pipe:1"
-            ]
+        def start_ffmpeg(enable_gpu):
+            if enable_gpu:
+                c = [
+                    get_binary_path("ffmpeg"), "-hwaccel", "cuda", "-i", video_path,
+                    "-vf", vf_filter,
+                    "-f", "rawvideo", "-pix_fmt", "bgr24", "-v", "error", "pipe:1"
+                ]
+            else:
+                c = [
+                    get_binary_path("ffmpeg"), "-i", video_path,
+                    "-vf", vf_filter,
+                    "-f", "rawvideo", "-pix_fmt", "bgr24", "-v", "error", "pipe:1"
+                ]
+            return subprocess.Popen(c, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW_FLAGS)
         
-        try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW_FLAGS)
-        except Exception:
-            if use_gpu:
-                cmd.pop(1); cmd.pop(1)
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW_FLAGS)
-            
+        proc = start_ffmpeg(use_gpu)
         frame_len = crop_w * crop_h * 3
+        
+        # Leer primer frame con fallback automático a CPU
+        raw = proc.stdout.read(frame_len)
+        if len(raw) < frame_len and use_gpu:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            proc = start_ffmpeg(False)
+            raw = proc.stdout.read(frame_len)
+            
         idx = 0
         video_kills = []
         last_kill_sec = -999
-        v_name = re.sub(r'^[a-zA-Z]:.*[\\/]', '', video_path)
+        v_name = os.path.basename(video_path)
         
         while is_running_check is None or is_running_check():
-            raw = proc.stdout.read(frame_len)
             if len(raw) < frame_len:
                 break
                 
             sec = int(idx * (1.0 / fps_rate))
             frame = np.frombuffer(raw, dtype=np.uint8).reshape((crop_h, crop_w, 3))
             
-            if on_progress and (idx % 2 == 0 or (duration_sec > 0 and sec >= duration_sec)):
+            if on_progress:
                 on_progress(sec, duration_sec, len(video_kills))
                 
-            # Detección de texto blanco en el Killfeed
-            white_mask = cv2.inRange(frame, np.array([160, 160, 160]), np.array([255, 255, 255]))
-            if cv2.countNonZero(white_mask) > 35:
+            white_mask = cv2.inRange(frame, np.array([170, 170, 170]), np.array([255, 255, 255]))
+            if cv2.countNonZero(white_mask) > 30:
                 res, _ = self.ocr(frame)
                 if res:
                     all_texts = [r[1] for r in res]
                     if not self.is_watermark_present(all_texts, filter_beta):
                         for item in res:
                             box, txt, score = item
-                            clean_txt = re.sub(r'[^a-zA-Z0-9]', '', txt.lower())
+                            clean = re.sub(r'[^a-zA-Z0-9]', '', txt.lower())
                             
-                            # Comprobación de coincidencia con cualquiera de los gamertags
-                            matched = any(gt in clean_txt for gt in clean_gamertags if len(gt) >= 2)
+                            matched = any(gt in clean for gt in clean_gamertags if len(gt) >= 2)
                             if matched:
                                 center_x = (box[0][0] + box[1][0]) / 2.0
-                                # Debe estar en el lado izquierdo del Killfeed (el atacante/asesino)
-                                if center_x < 160:
-                                    if sec - last_kill_sec >= 3.0:
+                                
+                                # Si el nombre aparece a la izquierda (center_x < 130), eres tú eliminando al enemigo
+                                if center_x < 130:
+                                    if sec - last_kill_sec >= 2.5:
                                         last_kill_sec = sec
-                                        ts_str = str(timedelta(seconds=sec))
-                                        killer, dist, victim = self.parse_killfeed_line(all_texts, clean_gamertags)
+                                        killer, distance, victim = self.parse_killfeed_line(all_texts, clean_gamertags)
+                                        if txt.strip():
+                                            killer = txt.strip()
+                                            
+                                        is_multikill = (len(video_kills) > 0 and (sec - video_kills[-1].time_sec <= multi_window))
+                                        
+                                        if is_multikill:
+                                            if len(video_kills) >= 2 and (sec - video_kills[-2].time_sec <= multi_window):
+                                                play_type = "Triple Baja"
+                                            else:
+                                                play_type = "Doble Baja"
+                                        else:
+                                            play_type = "Baja"
+                                            
+                                        hype = AudioAnalyzer.get_hype_score(sec, audio_energies, is_multikill)
                                         
                                         rec = KillRecord(
                                             video_path=video_path,
                                             video_name=v_name,
                                             time_sec=sec,
-                                            timestamp=ts_str,
+                                            timestamp=str(timedelta(seconds=sec)),
                                             killer=killer,
-                                            distance=dist,
+                                            distance=distance,
                                             victim=victim,
+                                            play_type=play_type,
+                                            hype=hype,
                                             frame_rgb=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                                         )
                                         video_kills.append(rec)
+                                        
+                                        if on_kill_found:
+                                            on_kill_found(rec)
                                         break
+                                        
             idx += 1
+            raw = proc.stdout.read(frame_len)
             
         try:
             proc.terminate()
-            proc.wait()
+            proc.stdout.close()
         except Exception:
             pass
-            
-        # Post-procesar multikills y nivel de intensidad
-        multi_window = 20
-        for i, k in enumerate(video_kills):
-            streak = 1
-            for j in range(i - 1, -1, -1):
-                if k.time_sec - video_kills[j].time_sec <= multi_window:
-                    streak += 1
-                else:
-                    break
-                    
-            if streak == 2: k.play_type = "Doble Baja"
-            elif streak == 3: k.play_type = "Triple Baja"
-            elif streak >= 4: k.play_type = f"Racha x{streak}"
-            else: k.play_type = "Baja"
-            
-            k.hype = AudioAnalyzer.get_hype_score(k.time_sec, audio_energies, streak > 1)
             
         return video_kills

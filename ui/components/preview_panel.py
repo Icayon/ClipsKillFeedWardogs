@@ -1,4 +1,4 @@
-﻿import customtkinter as ctk
+import customtkinter as ctk
 from ..theme import (
     CARD_BG, CARD_BORDER, INNER_BG, HOVER_BG, TEXT_WHITE, 
     TEXT_MUTED, TEXT_LIGHT, ACCENT_BLUE, ACCENT_BLUE_H, 
@@ -91,3 +91,11 @@ class PreviewPanel(ctk.CTkFrame):
         self.btn_open_video.configure(text=self.t("btn_open_full"))
         self.btn_batch.configure(text=self.t("btn_batch"))
         self.btn_html.configure(text=self.t("btn_html"))
+
+    def clear(self):
+        """Resetea el panel de vista previa al estado vacío inicial."""
+        self.lbl_preview_img.configure(image=None, text=self.t("preview_hint"))
+        self.preview_image_ref = None
+        self.lbl_preview_details.configure(
+            text=f"{self.t('meta_file')} --\n{self.t('meta_time')} --:--:--\n{self.t('meta_play')} --\n{self.t('meta_dist')} --\n{self.t('meta_target')} --\n{self.t('meta_hype')} --"
+        )

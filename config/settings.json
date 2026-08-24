@@ -1,0 +1,13 @@
+{
+    "gamertags": "ICayon",
+    "default_out_dir": "C:\\Users\\kaosd\\Downloads\\Clips_Wardogs",
+    "use_gpu": true,
+    "sec_before": 7,
+    "sec_after": 7,
+    "multikill_window": 15,
+    "group_multikills": true,
+    "auto_open": true,
+    "detect_audio": true,
+    "filter_beta": true,
+    "language": "es"
+}

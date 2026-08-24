@@ -10,7 +10,7 @@ class AudioAnalyzer:
                 get_binary_path("ffmpeg"), "-i", video_path, "-vn",
                 "-ac", "1", "-ar", "8000", "-f", "s16le", "-v", "error", "pipe:1"
             ]
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW_FLAGS)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW_FLAGS)
             raw = proc.stdout.read()
             proc.stdout.close()
             proc.wait()
