@@ -5,7 +5,6 @@ from utils.paths import get_binary_path, NO_WINDOW_FLAGS
 class AudioAnalyzer:
     @staticmethod
     def analyze_audio_peaks(video_path: str) -> list:
-        """Extrae la pista de audio en crudo a 8kHz mono y calcula el RMS por segundo"""
         try:
             cmd = [
                 get_binary_path("ffmpeg"), "-i", video_path, "-vn",
@@ -37,9 +36,8 @@ class AudioAnalyzer:
 
     @staticmethod
     def get_hype_score(kill_sec: int, audio_energies: list, is_multikill: bool) -> str:
-        """Puntúa de 3 a 5 estrellas según la energía vocal detectada en el micrófono"""
         if not audio_energies or kill_sec >= len(audio_energies):
-            return "⭐⭐⭐" if not is_multikill else "⭐⭐⭐⭐"
+            return "Normal" if not is_multikill else "Media"
             
         start_sec = max(0, kill_sec - 2)
         end_sec = min(len(audio_energies), kill_sec + 5)
@@ -51,8 +49,8 @@ class AudioAnalyzer:
         has_voice_hype = (max_in_window > avg_energy * 2.2) and (max_in_window > 800)
         
         if is_multikill and has_voice_hype:
-            return "⭐⭐⭐⭐⭐"
+            return "Alta"
         elif is_multikill or has_voice_hype:
-            return "⭐⭐⭐⭐"
+            return "Media"
         else:
-            return "⭐⭐⭐"
+            return "Normal"

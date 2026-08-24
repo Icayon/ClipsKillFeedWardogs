@@ -24,7 +24,7 @@ class TutorialModal(ctk.CTkToplevel):
         
         ctk.CTkLabel(
             top_hdr, 
-            text=f"📖  {self.t('tut_title')}", 
+            text=self.t("tut_title"), 
             font=ctk.CTkFont(size=14, weight="bold"), 
             text_color=ACCENT_CYAN
         ).pack(side="left", padx=20, pady=12)
@@ -33,14 +33,14 @@ class TutorialModal(ctk.CTkToplevel):
         scroll_tut.pack(fill="both", expand=True, padx=20, pady=12)
         
         steps = [
-            ("🎬", self.t("tut_step1_title"), self.t("tut_step1_desc"), ACCENT_BLUE),
-            ("👤", self.t("tut_step2_title"), self.t("tut_step2_desc"), "#38bdf8"),
-            ("🎙️", self.t("tut_step3_title"), self.t("tut_step3_desc"), "#f59e0b"),
-            ("⚡", self.t("tut_step4_title"), self.t("tut_step4_desc"), ACCENT_GREEN),
-            ("✂️", self.t("tut_step5_title"), self.t("tut_step5_desc"), ACCENT_PURPLE)
+            (self.t("tut_step1_title"), self.t("tut_step1_desc"), ACCENT_BLUE),
+            (self.t("tut_step2_title"), self.t("tut_step2_desc"), "#38bdf8"),
+            (self.t("tut_step3_title"), self.t("tut_step3_desc"), "#f59e0b"),
+            (self.t("tut_step4_title"), self.t("tut_step4_desc"), ACCENT_GREEN),
+            (self.t("tut_step5_title"), self.t("tut_step5_desc"), ACCENT_PURPLE)
         ]
         
-        for icon, title, desc, color in steps:
+        for title, desc, color in steps:
             card = ctk.CTkFrame(scroll_tut, fg_color=CARD_BG, corner_radius=8, border_width=1, border_color=CARD_BORDER)
             card.pack(fill="x", pady=6)
             
@@ -49,7 +49,7 @@ class TutorialModal(ctk.CTkToplevel):
             
             ctk.CTkLabel(
                 c_hdr, 
-                text=f"{icon}  {title}", 
+                text=title, 
                 font=ctk.CTkFont(size=12, weight="bold"), 
                 text_color=color
             ).pack(side="left")

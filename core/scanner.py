@@ -39,7 +39,7 @@ class KillfeedScanner:
         dist_match = re.search(r'\[?(\d+)\s*m\]?', line_str, re.IGNORECASE)
         distance = f"[{dist_match.group(1)}m]" if dist_match else "Distancia media"
         
-        killer = "Tú"
+        killer = "Tu"
         victim = "Enemigo"
         
         parts = [t.strip() for t in texts if t.strip()]
@@ -54,7 +54,6 @@ class KillfeedScanner:
 
     def scan_video(self, video_path: str, gamertags: list, detect_audio: bool, filter_beta: bool, 
                    use_gpu: bool = True, on_progress=None, is_running_check=None):
-        """Escanea un vídeo individual y devuelve la lista de KillRecords detectados"""
         clean_gamertags = [re.sub(r'[^a-zA-Z0-9]', '', t.lower()) for t in gamertags if t.strip()]
         duration_sec = self.get_video_duration(video_path)
         
@@ -141,7 +140,7 @@ class KillfeedScanner:
         except Exception:
             pass
             
-        # Post-procesar multikills y hype
+        # Post-procesar multikills y nivel de intensidad
         multi_window = 20
         for i, k in enumerate(video_kills):
             streak = 1
@@ -151,10 +150,10 @@ class KillfeedScanner:
                 else:
                     break
                     
-            if streak == 2: k.play_type = "🔥 DOBLE BAJA"
-            elif streak == 3: k.play_type = "⚡ TRIPLE BAJA"
-            elif streak >= 4: k.play_type = f"👑 RACHA x{streak}"
-            else: k.play_type = "🎯 Baja"
+            if streak == 2: k.play_type = "Doble Baja"
+            elif streak == 3: k.play_type = "Triple Baja"
+            elif streak >= 4: k.play_type = f"Racha x{streak}"
+            else: k.play_type = "Baja"
             
             k.hype = AudioAnalyzer.get_hype_score(k.time_sec, audio_energies, streak > 1)
             

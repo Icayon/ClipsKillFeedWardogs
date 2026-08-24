@@ -61,14 +61,14 @@ class AppHeader(ctk.CTkFrame):
         
         # Redes
         ctk.CTkButton(
-            head_right, text="𝕏  @ICayonh", width=105, height=32,
+            head_right, text="X @ICayonh", width=105, height=32,
             fg_color=INNER_BG, hover_color=HOVER_BG, border_width=1, border_color=CARD_BORDER,
             text_color=TEXT_WHITE, font=ctk.CTkFont(size=12, weight="bold"),
             command=lambda: webbrowser.open("https://x.com/ICayonh")
         ).pack(side="left", padx=4)
         
         ctk.CTkButton(
-            head_right, text="🟣  Twitch/icayon", width=125, height=32,
+            head_right, text="Twitch / icayon", width=125, height=32,
             fg_color="#9146FF", hover_color="#772ce8",
             text_color="#ffffff", font=ctk.CTkFont(size=12, weight="bold"),
             command=lambda: webbrowser.open("https://www.twitch.tv/icayon")
@@ -93,10 +93,10 @@ class AppHeader(ctk.CTkFrame):
         self.btn_settings.pack(side="left", padx=4)
         
         # Idioma
-        self.lang_var = ctk.StringVar(value="🇪🇸 Español")
+        self.lang_var = ctk.StringVar(value="Español")
         self.cmb_lang = ctk.CTkOptionMenu(
-            head_right, values=["🇪🇸 Español", "🇬🇧 English"], variable=self.lang_var,
-            width=115, height=32, fg_color=INNER_BG, button_color=INNER_BG,
+            head_right, values=["Español", "English"], variable=self.lang_var,
+            width=100, height=32, fg_color=INNER_BG, button_color=INNER_BG,
             button_hover_color=HOVER_BG, text_color=TEXT_WHITE,
             font=ctk.CTkFont(size=11), dropdown_fg_color=CARD_BG,
             command=self.on_lang_change

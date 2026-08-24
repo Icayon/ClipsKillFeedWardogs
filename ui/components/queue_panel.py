@@ -155,10 +155,10 @@ class QueuePanel(ctk.CTkFrame):
             row = ctk.CTkFrame(self.scroll_videos, fg_color=CARD_BG, corner_radius=4, border_width=1, border_color=CARD_BORDER)
             row.pack(fill="x", pady=2, padx=2)
             
-            ctk.CTkLabel(row, text=f"🎬  {vname} ({size_mb:.1f} MB)", font=ctk.CTkFont(size=11), anchor="w", text_color=TEXT_WHITE).pack(side="left", padx=8, pady=4)
+            ctk.CTkLabel(row, text=f"{vname} ({size_mb:.1f} MB)", font=ctk.CTkFont(size=11), anchor="w", text_color=TEXT_WHITE).pack(side="left", padx=8, pady=4)
             
             ctk.CTkButton(
-                row, text="✕", width=22, height=22, fg_color=INNER_BG, hover_color=ACCENT_RED,
+                row, text="X", width=22, height=22, fg_color=INNER_BG, hover_color=ACCENT_RED,
                 text_color=TEXT_MUTED, corner_radius=3, command=lambda p=vpath: self.remove_video(p)
             ).pack(side="right", padx=6)
             
