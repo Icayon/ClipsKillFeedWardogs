@@ -1,0 +1,27 @@
+﻿[project]
+name = "clips-killfeed-wardogs"
+version = "1.0.0"
+description = "Detector Inteligente de Bajas por IA y Editor Automático de Clips para Wardogs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "ICayon", url = "https://twitch.tv/icayon" }
+]
+dependencies = [
+    "customtkinter>=5.2.0",
+    "rapidocr-onnxruntime>=1.3.0",
+    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "pyinstaller>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Icayon/Clips-KillFeed-Wardogs"
+Twitch = "https://www.twitch.tv/icayon"
+Twitter = "https://x.com/ICayonh"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

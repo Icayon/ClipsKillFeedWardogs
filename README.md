@@ -8,6 +8,7 @@
 [![Twitch](https://img.shields.io/badge/Twitch-Twitch%2Ficayon-9146FF?style=for-the-badge&logo=twitch&logoColor=white)](https://www.twitch.tv/icayon)
 [![Twitter](https://img.shields.io/badge/Twitter%20%2F%20X-@ICayonh-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/ICayonh)
 [![Release](https://img.shields.io/github/v/release/Icayon/Clips-KillFeed-Wardogs?color=38bdf8&style=for-the-badge)](https://github.com/Icayon/Clips-KillFeed-Wardogs/releases/latest)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
 **[🇪🇸 Español](#-español) | [🇬🇧 English](#-english)**
@@ -32,18 +33,22 @@ Esta herramienta escanea tus partidas usando Inteligencia Artificial local:
 
 ### 🚀 ¿Cómo se usa?
 
-#### 💻 Opción 1: Descargar y jugar (Sin tocar código)
+#### 💻 Opción 1: Descargar y jugar (Sin tocar código) — *Recomendado*
 1. Vete a la sección de **[Releases](../../releases/latest)**.
 2. Bájate el archivo Clips KillFeed Wardogs (Portable).zip.
 3. Descomprímelo en tu PC y abre Clips KillFeed Wardogs.exe.
 4. *(Si Windows te saca la típica ventana azul de "Windows protegió su PC", dale a "Más información" y luego a "Ejecutar de todas formas")*.
 
-#### 🐍 Opción 2: Ejecutar con Python (Para programadores)
+#### ⚡ Opción 2: Ejecutar con uv (Para desarrolladores)
+Este proyecto utiliza **[uv](https://github.com/astral-sh/uv)** como gestor de paquetes y dependencias ultra-rápido:
+
 `ash
+# 1. Clonar el repositorio
 git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
 cd Clips-KillFeed-Wardogs
-pip install -r requirements.txt
-python AutoClip_AI.py
+
+# 2. Ejecutar directamente (uv crea el entorno e instala dependencias en 1 segundo):
+uv run AutoClip_AI.py
 `
 
 ---
@@ -69,12 +74,13 @@ Using local AI, it:
 2. Download Clips KillFeed Wardogs (Portable).zip.
 3. Unzip anywhere and double-click Clips KillFeed Wardogs.exe.
 
-#### 🐍 Option 2: Run from Source
+#### ⚡ Option 2: Run from Source with uv
 `ash
 git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
 cd Clips-KillFeed-Wardogs
-pip install -r requirements.txt
-python AutoClip_AI.py
+
+# Run instantly (uv handles virtualenv and packages automatically):
+uv run AutoClip_AI.py
 `
 
 ---
