@@ -47,7 +47,8 @@ class KillfeedScanner:
         return any(t in full for t in wm_tokens)
 
     @staticmethod
-    def parse_killfeed_line(texts: list, clean_gamertags: list) -> tuple:
+    def parse_killfeed_line(res_sorted: list, clean_gamertags: list) -> tuple:
+        texts = [r[1] for r in res_sorted]
         line_str = " | ".join(texts)
         dist_match = re.search(r'\[?(\d+)\s*m\]?', line_str, re.IGNORECASE)
         distance = f"[{dist_match.group(1)}m]" if dist_match else "Distancia media"
@@ -128,7 +129,14 @@ class KillfeedScanner:
                 if res:
                     all_texts = [r[1] for r in res]
                     if not self.is_watermark_present(all_texts, filter_beta):
-                        for item in res:
+                        # Ordenar cajas de texto de izquierda a derecha
+                        res_sorted = sorted(res, key=lambda r: min(p[0] for p in r[0]))
+                        
+                        # Buscar si eres el atacante (lado izquierdo) y NO la víctima (lado derecho)
+                        is_my_kill = False
+                        matched_killer_text = None
+                        
+                        for r_idx, item in enumerate(res_sorted):
                             box, txt, score = item
                             clean = re.sub(r'[^a-zA-Z0-9]', '', txt.lower())
                             
