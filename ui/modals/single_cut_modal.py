@@ -17,7 +17,8 @@ class SingleCutModal(ctk.CTkToplevel):
         self.on_execute = on_execute
         
         self.title(self.t("single_modal_title"))
-        self.geometry("520x350")
+        self.geometry("600x370")
+        self.minsize(580, 360)
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -75,42 +76,51 @@ class SingleCutModal(ctk.CTkToplevel):
         )
         btn_br.pack(side="right")
         
-        # 3. Botones de formato
+        # 3. Botones de formato (Grid uniforme de 3 columnas de igual ancho)
         btn_grid = ctk.CTkFrame(self, fg_color="transparent")
-        btn_grid.pack(fill="x", padx=24, pady=(0, 10))
+        btn_grid.pack(fill="x", padx=24, pady=(0, 14))
+        btn_grid.columnconfigure(0, weight=1, uniform="fmt_btns")
+        btn_grid.columnconfigure(1, weight=1, uniform="fmt_btns")
+        btn_grid.columnconfigure(2, weight=1, uniform="fmt_btns")
         
-        ctk.CTkButton(
+        btn_h = ctk.CTkButton(
             btn_grid, 
             text=self.t("btn_h169"), 
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=ACCENT_BLUE, 
             hover_color=ACCENT_BLUE_H,
-            height=36,
+            text_color="#ffffff",
+            height=38,
             command=lambda: self._execute("16x9")
-        ).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        )
+        btn_h.grid(row=0, column=0, padx=(0, 6), sticky="ew")
         
-        ctk.CTkButton(
+        btn_v = ctk.CTkButton(
             btn_grid, 
             text=self.t("btn_v916"), 
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=ACCENT_PURPLE, 
             hover_color=ACCENT_PURPLE_H,
-            height=36,
+            text_color="#ffffff",
+            height=38,
             command=lambda: self._execute("9x16")
-        ).pack(side="left", fill="x", expand=True, padx=(0, 4))
+        )
+        btn_v.grid(row=0, column=1, padx=(0, 6), sticky="ew")
         
-        ctk.CTkButton(
+        btn_b = ctk.CTkButton(
             btn_grid, 
             text=self.t("btn_both"), 
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=ACCENT_GREEN, 
             hover_color=ACCENT_GREEN_H,
-            height=36,
+            text_color="#ffffff",
+            height=38,
             command=lambda: self._execute("both")
-        ).pack(side="left", fill="x", expand=True)
+        )
+        btn_b.grid(row=0, column=2, sticky="ew")
 
     def _browse(self):
-        d = filedialog.askdirectory(initialdir=self.ent_dest.get().strip() or r"E:\Videos OBS")
+        d = filedialog.askdirectory(initialdir=self.ent_dest.get().strip() or os.path.join(os.path.expanduser("~"), "Downloads"))
         if d:
             self.ent_dest.delete(0, "end")
             self.ent_dest.insert(0, os.path.abspath(d))
