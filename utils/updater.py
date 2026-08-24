@@ -9,7 +9,7 @@ import urllib.request
 import urllib.error
 from utils.paths import get_binary_path, NO_WINDOW_FLAGS
 
-REPO_API_URL = "https://api.github.com/repos/Icayon/ClipsKillFeedWardogs/releases/latest"
+REPO_API_URL = "https://api.github.com/repos/Icayon/ClipsKillFeedWardogs/releases"
 CURRENT_VERSION = "v0.2.0-beta"
 
 
@@ -61,7 +61,9 @@ def check_github_release(current_version: str = CURRENT_VERSION) -> dict:
         )
         with urllib.request.urlopen(req, timeout=6) as resp:
             if resp.status == 200:
-                data = json.loads(resp.read().decode('utf-8'))
+                raw_data = json.loads(resp.read().decode('utf-8'))
+                data = raw_data[0] if isinstance(raw_data, list) and raw_data else raw_data
+                
                 tag_name = data.get("tag_name", "")
                 body = data.get("body", "Sin notas de versión disponibles.")
                 published = data.get("published_at", "")[:10]
