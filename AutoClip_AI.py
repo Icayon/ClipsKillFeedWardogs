@@ -219,7 +219,9 @@ class AutoClipWardogsApp(ctk.CTk):
             icon_ico = get_binary_path("app_icon.ico")
             if not os.path.exists(icon_ico):
                 base_d = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-                icon_ico = os.path.join(base_d, "Archivos", "app_icon.ico")
+                p1 = os.path.join(base_d, "Archivos", "app_icon.ico")
+                p2 = os.path.join(base_d, "assets", "app_icon.ico")
+                icon_ico = p1 if os.path.exists(p1) else p2
             if os.path.exists(icon_ico):
                 self.iconbitmap(icon_ico)
         except Exception:
@@ -258,7 +260,9 @@ class AutoClipWardogsApp(ctk.CTk):
             png_logo_path = get_binary_path("app_icon.png")
             if not os.path.exists(png_logo_path):
                 base_d = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-                png_logo_path = os.path.join(base_d, "Archivos", "app_icon.png")
+                p1 = os.path.join(base_d, "Archivos", "app_icon.png")
+                p2 = os.path.join(base_d, "assets", "app_icon.png")
+                png_logo_path = p1 if os.path.exists(p1) else p2
             if os.path.exists(png_logo_path):
                 pil_logo = Image.open(png_logo_path).resize((36, 36), Image.Resampling.LANCZOS)
                 self.header_logo_img = ImageTk.PhotoImage(pil_logo)
