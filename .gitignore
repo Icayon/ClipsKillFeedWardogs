@@ -1,0 +1,25 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+*.spec
+
+# Build & Dist
+build/
+dist/
+Archivos/
+*.exe
+*.zip
+*.log
+
+# Temp files
+*.wav
+temp_*
+*.tmp
+
+# Environments & IDEs
+.env
+.venv/
+venv/
+.vscode/
+.idea/
