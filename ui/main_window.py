@@ -9,34 +9,38 @@ from PIL import Image, ImageTk
 import customtkinter as ctk
 
 from utils.paths import get_binary_path, NO_WINDOW_FLAGS, init_windows_app_id
+from utils.config import load_config, save_config
 from i18n import Translator
 from core import KillRecord, KillfeedScanner, ClipRenderer, HtmlReporter
 from .theme import BG_MAIN, CARD_BG, CARD_BORDER, ACCENT_BLUE, ACCENT_CYAN, TEXT_MUTED, TEXT_LIGHT
 from .components import AppHeader, QueuePanel, EventsTable, PreviewPanel
-from .modals import TutorialModal, SingleCutModal, BatchExportModal, SettingsModal
+from .modals import TutorialModal, SingleCutModal, BatchExportModal, SettingsModal, InfoModal
 
 class AutoClipWardogsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         init_windows_app_id()
         
-        self.translator = Translator("es")
+        # Cargar configuración persistente
+        self.config = load_config()
+        self.lang = self.config.get("language", "es")
+        self.translator = Translator(self.lang)
         self.t = self.translator
         
-        # Configuración del usuario
-        self.default_out_dir = os.path.join(os.path.expanduser("~"), "Downloads", "Clips_Wardogs")
+        self.default_out_dir = self.config.get("default_out_dir", os.path.join(os.path.expanduser("~"), "Downloads", "Clips_Wardogs"))
         os.makedirs(self.default_out_dir, exist_ok=True)
-        self.use_gpu = True
-        self.sec_before = 7
-        self.sec_after = 7
-        self.auto_open = True
+        self.use_gpu = self.config.get("use_gpu", True)
+        self.sec_before = self.config.get("sec_before", 7)
+        self.sec_after = self.config.get("sec_after", 7)
+        self.multikill_window = self.config.get("multikill_window", 15)
+        self.group_multikills = self.config.get("group_multikills", True)
+        self.auto_open = self.config.get("auto_open", True)
         
         self.title("Clips KillFeed Wardogs by ICayon")
         self.geometry("1280x870")
         self.minsize(1100, 740)
         self.configure(fg_color=BG_MAIN)
         
-        # Icono ventana
         try:
             icon_ico = get_binary_path("app_icon.ico")
             if os.path.exists(icon_ico):
@@ -49,6 +53,7 @@ class AutoClipWardogsApp(ctk.CTk):
         self.all_kills_data = []
         
         self._setup_ui()
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
         
     def _setup_ui(self):
         # 1. Header
@@ -58,6 +63,10 @@ class AutoClipWardogsApp(ctk.CTk):
             on_open_tutorial=self._open_tutorial,
             on_open_settings=self._open_settings
         )
+        if self.lang == "en":
+            self.header.lang_var.set("English")
+        else:
+            self.header.lang_var.set("Español")
         
         # 2. Main Area
         main_content = ctk.CTkFrame(self, fg_color="transparent")
@@ -70,6 +79,20 @@ class AutoClipWardogsApp(ctk.CTk):
             on_stop=self._stop_scan,
             on_help_gamertag=self._open_tutorial
         )
+        
+        # Restaurar gamertags guardados
+        saved_tags = self.config.get("gamertags", "ICayon")
+        self.queue_panel.ent_gamertags.delete(0, "end")
+        self.queue_panel.ent_gamertags.insert(0, saved_tags)
+        
+        # Auto-guardado de Gamertag en tiempo real
+        self.queue_panel.ent_gamertags.bind("<KeyRelease>", self._auto_save_gamertags)
+        self.queue_panel.ent_gamertags.bind("<FocusOut>", self._auto_save_gamertags)
+        
+        if not self.config.get("detect_audio", True):
+            self.queue_panel.chk_detect_audio.deselect()
+        if not self.config.get("filter_beta", True):
+            self.queue_panel.chk_filter_beta.deselect()
         
         # Center Table
         self.events_table = EventsTable(
@@ -98,120 +121,186 @@ class AutoClipWardogsApp(ctk.CTk):
         status_box = ctk.CTkFrame(self.bottom_bar, fg_color="transparent")
         status_box.pack(fill="x", padx=18, pady=(8, 2))
         
-        self.lbl_status_progress = ctk.CTkLabel(status_box, text=self.t("ready"), font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_LIGHT)
+        self.lbl_status_progress = ctk.CTkLabel(status_box, text=self.t("ready"), font=ctk.CTkFont(size=11, weight="bold"), text_color=TEXT_MUTED)
         self.lbl_status_progress.pack(side="left")
         
-        self.lbl_progress_pct = ctk.CTkLabel(status_box, text="0%", font=ctk.CTkFont(size=12, weight="bold"), text_color=ACCENT_CYAN)
-        self.lbl_progress_pct.pack(side="left", padx=12)
-        
-        self.lbl_progress_detail = ctk.CTkLabel(status_box, text="--:--:-- / --:--:--", font=ctk.CTkFont(size=11), text_color=TEXT_MUTED)
-        self.lbl_progress_detail.pack(side="right")
+        self.lbl_progress_pct = ctk.CTkLabel(status_box, text="0%", font=ctk.CTkFont(size=11), text_color=TEXT_MUTED)
+        self.lbl_progress_pct.pack(side="right")
         
         self.progress_bar = ctk.CTkProgressBar(self.bottom_bar, height=6, corner_radius=3, fg_color=BG_MAIN, progress_color=ACCENT_BLUE)
-        self.progress_bar.set(0.0)
-        self.progress_bar.pack(fill="x", padx=18, pady=(0, 8))
-
-    def _change_language(self, choice):
-        lang = "es" if "Español" in choice else "en"
-        self.translator.set_language(lang)
-        self.header.refresh_texts()
-        self.queue_panel.refresh_texts()
-        self.events_table.refresh_headers()
-        self.preview_panel.refresh_texts()
-        self.lbl_status_progress.configure(text=self.t("ready"))
+        self.progress_bar.pack(fill="x", padx=18, pady=(2, 4))
+        self.progress_bar.set(0)
         
+        self.lbl_progress_detail = ctk.CTkLabel(self.bottom_bar, text="", font=ctk.CTkFont(size=10), text_color=TEXT_MUTED)
+        self.lbl_progress_detail.pack(side="left", padx=18, pady=(0, 6))
+
     def _open_tutorial(self):
         TutorialModal(self, self.t)
         
     def _open_settings(self):
         SettingsModal(
             self, 
-            default_folder=self.default_out_dir, 
-            use_gpu=self.use_gpu, 
-            sec_before=self.sec_before, 
-            sec_after=self.sec_after, 
-            auto_open=self.auto_open, 
+            current_out_dir=self.default_out_dir, 
+            current_gpu_mode=self.use_gpu, 
+            current_sec_before=self.sec_before,
+            current_sec_after=self.sec_after,
+            current_multikill_window=self.multikill_window,
+            current_group_multikills=self.group_multikills,
+            current_auto_open=self.auto_open,
             translator=self.t, 
-            on_save=self._apply_settings
+            on_save=self._save_settings
         )
         
-    def _apply_settings(self, folder: str, use_gpu: bool, sec_before: int, sec_after: int, auto_open: bool):
-        self.default_out_dir = folder
-        self.use_gpu = use_gpu
-        self.sec_before = sec_before
-        self.sec_after = sec_after
-        self.auto_open = auto_open
-        os.makedirs(self.default_out_dir, exist_ok=True)
-        messagebox.showinfo("AutoClip", "Configuración guardada correctamente.")
+    def _save_settings(self, new_dir, new_gpu, new_before, new_after, new_multi, new_group_multikills, new_auto_open):
+        self.default_out_dir = new_dir
+        self.use_gpu = new_gpu
+        self.sec_before = new_before
+        self.sec_after = new_after
+        self.multikill_window = new_multi
+        self.group_multikills = new_group_multikills
+        self.auto_open = new_auto_open
+        
+        # Guardar en archivo persistente
+        self.config["default_out_dir"] = self.default_out_dir
+        self.config["use_gpu"] = self.use_gpu
+        self.config["sec_before"] = self.sec_before
+        self.config["sec_after"] = self.sec_after
+        self.config["multikill_window"] = self.multikill_window
+        self.config["group_multikills"] = self.group_multikills
+        self.config["auto_open"] = self.auto_open
+        save_config(self.config)
+
+    def _change_language(self, choice):
+        code = "en" if "English" in choice else "es"
+        self.lang = code
+        self.translator.set_language(code)
+        self.config["language"] = code
+        save_config(self.config)
+        self._refresh_all_texts()
+        
+    def _refresh_all_texts(self):
+        self.header.refresh_texts()
+        self.queue_panel.refresh_texts()
+        self.events_table.refresh_headers()
+        self.preview_panel.refresh_texts()
+        self.lbl_status_progress.configure(text=self.t("ready"))
+
+    def _auto_save_gamertags(self, event=None):
+        tag_val = self.queue_panel.ent_gamertags.get().strip()
+        if tag_val:
+            self.config["gamertags"] = tag_val
+            save_config(self.config)
+
+    def _on_close(self):
+        try:
+            tag_val = self.queue_panel.ent_gamertags.get().strip()
+            if tag_val:
+                self.config["gamertags"] = tag_val
+            self.config["detect_audio"] = bool(self.queue_panel.chk_detect_audio.get())
+            self.config["filter_beta"] = bool(self.queue_panel.chk_filter_beta.get())
+            save_config(self.config)
+        except Exception:
+            pass
+        self.destroy()
 
     def _start_scan(self):
         if not self.queue_panel.video_list:
-            messagebox.showwarning("Atención", self.t("empty_queue"))
+            messagebox.showwarning("Atención", "Añade al menos un vídeo a la lista para comenzar.")
             return
             
-        raw_gamertags = self.queue_panel.ent_gamertags.get().strip()
-        if not raw_gamertags:
-            messagebox.showwarning("Atención", self.t("tracking_label"))
+        tags_raw = self.queue_panel.ent_gamertags.get().strip()
+        if not tags_raw:
+            messagebox.showwarning("Atención", "Introduce tu Gamertag / Nick en el campo correspondiente.")
             return
             
+        # Guardar configuración actual
+        self.config["gamertags"] = tags_raw
+        self.config["detect_audio"] = bool(self.queue_panel.chk_detect_audio.get())
+        self.config["filter_beta"] = bool(self.queue_panel.chk_filter_beta.get())
+        save_config(self.config)
+        
+        gamertags = [t.strip() for t in tags_raw.split(',') if t.strip()]
+        detect_audio = bool(self.queue_panel.chk_detect_audio.get())
+        filter_beta = bool(self.queue_panel.chk_filter_beta.get())
+        
         self.is_running = True
         self.queue_panel.btn_start.configure(state="disabled")
         self.queue_panel.btn_stop.configure(state="normal")
         self.all_kills_data = []
         self.events_table.clear()
+        self.preview_panel.clear()
+        
+        self.progress_bar.set(0)
+        self.lbl_progress_pct.configure(text="0%")
         self.lbl_status_progress.configure(text=self.t("scanning"))
         
-        threading.Thread(target=self._scan_worker, daemon=True).start()
+        threading.Thread(
+            target=self._scan_worker, 
+            args=(list(self.queue_panel.video_list), gamertags, detect_audio, filter_beta), 
+            daemon=True
+        ).start()
 
     def _stop_scan(self):
         self.is_running = False
-        self.queue_panel.btn_start.configure(state="normal")
-        self.queue_panel.btn_stop.configure(state="disabled")
-        self.lbl_status_progress.configure(text="Detenido")
-        self.lbl_progress_detail.configure(text="Detenido por el usuario")
+        self.lbl_status_progress.configure(text="Deteniendo escaneo...")
 
-    def _scan_worker(self):
-        videos = self.queue_panel.video_list
-        total_videos = len(videos)
-        gamertags = [t.strip() for t in self.queue_panel.ent_gamertags.get().split(",") if t.strip()]
-        detect_audio = self.queue_panel.chk_detect_audio.get()
-        filter_beta = self.queue_panel.chk_filter_beta.get()
-        
-        for v_idx, v_path in enumerate(videos):
+    def _scan_worker(self, video_list, gamertags, detect_audio, filter_beta):
+        total_videos = len(video_list)
+        for v_idx, vpath in enumerate(video_list):
             if not self.is_running:
                 break
                 
-            v_name = os.path.basename(v_path)
-            duration_sec = self.scanner.get_video_duration(v_path)
-            total_ts_str = str(timedelta(seconds=duration_sec)) if duration_sec > 0 else "--:--:--"
+            vname = os.path.basename(vpath)
             
-            def on_prog(sec, total_sec, count_v):
-                global_pct = ((v_idx + (sec / total_sec if total_sec > 0 else 0)) / total_videos)
-                self.progress_bar.set(global_pct)
-                self.lbl_progress_pct.configure(text=f"{int(global_pct * 100)}%")
-                self.lbl_progress_detail.configure(text=f"{str(timedelta(seconds=sec))} / {total_ts_str}  [{v_idx+1}/{total_videos}]")
-                self.lbl_status_progress.configure(text=f"Bajas: {len(self.all_kills_data)} | {v_name}")
+            def on_prog(sec, dur, kills_found):
+                pct = 0.0
+                if dur > 0:
+                    video_pct = sec / float(dur)
+                    pct = (v_idx + video_pct) / float(total_videos)
+                else:
+                    pct = (v_idx + 0.5) / float(total_videos)
+                    
+                pct_clamped = min(1.0, max(0.0, pct))
+                
+                def update_gui():
+                    if not self.is_running:
+                        return
+                    self.progress_bar.set(pct_clamped)
+                    self.lbl_progress_pct.configure(text=f"{int(pct_clamped * 100)}%")
+                    self.lbl_status_progress.configure(
+                        text=f"Analizando [{v_idx+1}/{total_videos}]: {vname} — {str(timedelta(seconds=sec))}"
+                    )
+                    self.lbl_progress_detail.configure(
+                        text=f"Vídeo {v_idx+1}/{total_videos} | {kills_found} bajas encontradas"
+                    )
+                self.after(0, update_gui)
                 
             kills = self.scanner.scan_video(
-                v_path, gamertags, detect_audio, filter_beta,
-                use_gpu=self.use_gpu,
-                on_progress=on_prog, is_running_check=lambda: self.is_running
+                vpath, gamertags, detect_audio, filter_beta, 
+                use_gpu=self.use_gpu, 
+                multi_window=self.multikill_window,
+                on_progress=on_prog, 
+                is_running_check=lambda: self.is_running
             )
             
-            for k in kills:
-                self.all_kills_data.append(k)
-                row_id = f"item_{len(self.all_kills_data)}"
-                self.events_table.add_item(row_id, (k.timestamp, k.killer, k.distance, k.victim, k.play_type, k.hype))
-                self.events_table.update_count(len(self.all_kills_data))
+            def add_kills(new_kills):
+                for k in new_kills:
+                    self.all_kills_data.append(k)
+                    row_id = f"item_{len(self.all_kills_data)}"
+                    self.events_table.add_item(row_id, (k.timestamp, k.killer, k.distance, k.victim, k.play_type, k.hype))
+                    self.events_table.update_count(len(self.all_kills_data))
+            self.after(0, lambda nk=kills: add_kills(nk))
                 
-        self.is_running = False
-        self.queue_panel.btn_start.configure(state="normal")
-        self.queue_panel.btn_stop.configure(state="disabled")
-        self.progress_bar.set(1.0)
-        self.lbl_progress_pct.configure(text="100%")
-        self.lbl_status_progress.configure(text=self.t("scan_finished"))
-        self.lbl_progress_detail.configure(text=f"Total: {len(self.all_kills_data)} bajas")
-        messagebox.showinfo("AutoClip", f"{self.t('scan_finished')}\n\nTotal bajas: {len(self.all_kills_data)}")
+        def finish_gui():
+            self.is_running = False
+            self.queue_panel.btn_start.configure(state="normal")
+            self.queue_panel.btn_stop.configure(state="disabled")
+            self.progress_bar.set(1.0)
+            self.lbl_progress_pct.configure(text="100%")
+            self.lbl_status_progress.configure(text=self.t("scan_finished"))
+            self.lbl_progress_detail.configure(text=f"Total: {len(self.all_kills_data)} bajas")
+            messagebox.showinfo("Clips KillFeed Wardogs", f"{self.t('scan_finished')}\n\nTotal bajas detectadas: {len(self.all_kills_data)}")
+        self.after(0, finish_gui)
 
     def _get_selected_record(self):
         selected = self.events_table.tree.selection()
@@ -261,6 +350,9 @@ class AutoClipWardogsApp(ctk.CTk):
 
     def _execute_single_cut(self, rec, format_choice, target_folder, custom_name):
         self.default_out_dir = target_folder
+        self.config["default_out_dir"] = target_folder
+        save_config(self.config)
+        
         def task():
             start_t = max(0, rec.time_sec - self.sec_before)
             duration = self.sec_before + self.sec_after
@@ -277,7 +369,7 @@ class AutoClipWardogsApp(ctk.CTk):
                     last_created = out_v
                     
             if last_created and os.path.exists(last_created):
-                messagebox.showinfo("AutoClip", f"{self.t('export_success')}\n\n📁 {target_folder}\n🎬 {os.path.basename(last_created)}")
+                messagebox.showinfo("Clips KillFeed Wardogs", f"{self.t('export_success')}\n\nCarpeta: {target_folder}\nArchivo: {os.path.basename(last_created)}")
                 if self.auto_open:
                     try: subprocess.Popen(f'explorer /select,"{os.path.abspath(last_created)}"', creationflags=NO_WINDOW_FLAGS)
                     except Exception: os.startfile(target_folder)
@@ -291,35 +383,83 @@ class AutoClipWardogsApp(ctk.CTk):
             return
         BatchExportModal(self, len(self.all_kills_data), self.default_out_dir, self.t, on_start=self._execute_batch)
 
-    def _execute_batch(self, out_dir, mode_choice):
+    def _execute_batch(self, out_dir, mode_choice, group_multikills=True):
         self.default_out_dir = out_dir
+        self.config["default_out_dir"] = out_dir
+        save_config(self.config)
+        
         def task():
             do_separate = ("Separados" in mode_choice) or ("Separate" in mode_choice) or ("Ambos" in mode_choice) or ("Both" in mode_choice)
             do_montage = ("Montaje" in mode_choice) or ("Montage" in mode_choice) or ("Ambos" in mode_choice) or ("Both" in mode_choice)
-            total = len(self.all_kills_data)
-            duration = self.sec_before + self.sec_after
             h_clips = []
             
-            for idx, k in enumerate(self.all_kills_data):
-                vname = os.path.splitext(k.video_name)[0]
-                ts_str = k.timestamp.replace(":", "-")
-                start_t = max(0, k.time_sec - self.sec_before)
-                clean_victim = re.sub(r'[^a-zA-Z0-9]', '', k.victim)
-                clean_dist = k.distance.replace('[','').replace(']','')
-                base_name = f"{vname}_Baja_{ts_str}_{clean_victim}_{clean_dist}"
+            if group_multikills:
+                clusters = []
+                current_cluster = []
                 
-                self.lbl_status_progress.configure(text=f"Exportando [{idx+1}/{total}]: {k.timestamp}")
-                out_h = ClipRenderer.get_unique_filepath(out_dir, f"{base_name}_16x9")
-                if ClipRenderer.render_clip(k.video_path, start_t, duration, out_h, is_vertical=False, use_gpu=self.use_gpu):
-                    h_clips.append(out_h)
+                for k in self.all_kills_data:
+                    if not current_cluster:
+                        current_cluster.append(k)
+                    else:
+                        prev_k = current_cluster[-1]
+                        if k.video_path == prev_k.video_path and (k.time_sec - prev_k.time_sec <= self.multikill_window):
+                            current_cluster.append(k)
+                        else:
+                            clusters.append(current_cluster)
+                            current_cluster = [k]
+                if current_cluster:
+                    clusters.append(current_cluster)
                     
+                total = len(clusters)
+                for idx, cluster in enumerate(clusters):
+                    first_k = cluster[0]
+                    last_k = cluster[-1]
+                    vname = os.path.splitext(first_k.video_name)[0]
+                    ts_str = first_k.timestamp.replace(":", "-")
+                    start_t = max(0, first_k.time_sec - self.sec_before)
+                    end_t = last_k.time_sec + self.sec_after
+                    duration = end_t - start_t
+                    
+                    streak_count = len(cluster)
+                    if streak_count == 1:
+                        play_type = "Baja"
+                    elif streak_count == 2:
+                        play_type = "Doble_Baja"
+                    elif streak_count == 3:
+                        play_type = "Triple_Baja"
+                    else:
+                        play_type = f"Racha_x{streak_count}"
+                        
+                    clean_victims = "_".join([re.sub(r'[^a-zA-Z0-9]', '', x.victim) for x in cluster[:3]])
+                    base_name = f"{vname}_{play_type}_{ts_str}_{clean_victims}"
+                    
+                    self.lbl_status_progress.configure(text=f"Exportando [{idx+1}/{total}]: {play_type} ({first_k.timestamp})")
+                    out_h = ClipRenderer.get_unique_filepath(out_dir, f"{base_name}_16x9")
+                    if ClipRenderer.render_clip(first_k.video_path, start_t, duration, out_h, is_vertical=False, use_gpu=self.use_gpu):
+                        h_clips.append(out_h)
+            else:
+                total = len(self.all_kills_data)
+                duration = self.sec_before + self.sec_after
+                for idx, k in enumerate(self.all_kills_data):
+                    vname = os.path.splitext(k.video_name)[0]
+                    ts_str = k.timestamp.replace(":", "-")
+                    start_t = max(0, k.time_sec - self.sec_before)
+                    clean_victim = re.sub(r'[^a-zA-Z0-9]', '', k.victim)
+                    clean_dist = k.distance.replace('[','').replace(']','')
+                    base_name = f"{vname}_Baja_{ts_str}_{clean_victim}_{clean_dist}"
+                    
+                    self.lbl_status_progress.configure(text=f"Exportando [{idx+1}/{total}]: {k.timestamp}")
+                    out_h = ClipRenderer.get_unique_filepath(out_dir, f"{base_name}_16x9")
+                    if ClipRenderer.render_clip(k.video_path, start_t, duration, out_h, is_vertical=False, use_gpu=self.use_gpu):
+                        h_clips.append(out_h)
+                        
             if do_montage and h_clips:
-                self.lbl_status_progress.configure(text="Generando vídeo recopilatorio de Highlights...")
+                self.lbl_status_progress.configure(text="Generando vídeo recopilatorio...")
                 master_montage = ClipRenderer.get_unique_filepath(out_dir, "MONTAJE_HIGHLIGHTS_16x9")
                 ClipRenderer.concatenate_clips(h_clips, master_montage)
                 
-            self.lbl_status_progress.configure(text=f"¡Exportación finalizada! Guardado en: {out_dir}")
-            messagebox.showinfo("AutoClip", f"¡Exportación completada con éxito!\n\nCarpeta:\n{out_dir}")
+            self.lbl_status_progress.configure(text=f"Exportación finalizada en: {out_dir}")
+            messagebox.showinfo("Clips KillFeed Wardogs", f"Exportación completada con éxito.\n\nCarpeta:\n{out_dir}")
             if self.auto_open:
                 try: os.startfile(out_dir)
                 except Exception: pass
@@ -329,4 +469,8 @@ class AutoClipWardogsApp(ctk.CTk):
         if not self.all_kills_data:
             messagebox.showwarning("Atención", "No hay datos de bajas para exportar.")
             return
-        HtmlReporter.generate_and_open(self.all_kills_data)
+        report_path = HtmlReporter.generate_report(self.all_kills_data, self.default_out_dir)
+        try:
+            os.startfile(report_path)
+        except Exception:
+            subprocess.Popen(f'explorer "{os.path.abspath(report_path)}"', creationflags=NO_WINDOW_FLAGS)

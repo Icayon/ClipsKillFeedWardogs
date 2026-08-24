@@ -34,7 +34,8 @@ class KillfeedScanner:
         return any(t in full for t in wm_tokens)
 
     @staticmethod
-    def parse_killfeed_line(texts: list, clean_gamertags: list) -> tuple:
+    def parse_killfeed_line(res_sorted: list, clean_gamertags: list) -> tuple:
+        texts = [r[1] for r in res_sorted]
         line_str = " | ".join(texts)
         dist_match = re.search(r'\[?(\d+)\s*m\]?', line_str, re.IGNORECASE)
         distance = f"[{dist_match.group(1)}m]" if dist_match else "Distancia media"
@@ -54,12 +55,11 @@ class KillfeedScanner:
         return killer, distance, victim
 
     def scan_video(self, video_path: str, gamertags: list, detect_audio: bool, filter_beta: bool, 
-                   use_gpu: bool = True, on_progress=None, is_running_check=None):
+                   use_gpu: bool = True, multi_window: int = 15, on_progress=None, is_running_check=None):
         """
-        Escanea el video normalizando cualquier resolución (720p, 1080p, 1440p, 4K, 8K)
-        a un espacio estándar de coordenadas para que la detección sea 100% precisa.
+        Escanea el video con normalización universal y discriminación estricta Asesino vs Víctima.
+        Si tu nombre aparece a la derecha de la línea significa que has muerto y NO se contabiliza como baja.
         """
-        # Extraer variantes limpias de los gamertags
         clean_gamertags = []
         for t in gamertags:
             t_str = t.strip().lower()
@@ -68,7 +68,6 @@ class KillfeedScanner:
             clean = re.sub(r'[^a-zA-Z0-9]', '', t_str)
             if clean and clean not in clean_gamertags:
                 clean_gamertags.append(clean)
-            # Extraer también palabras individuales (ej: si ponen '[TAG] Pepito', añadir 'pepito')
             words = re.findall(r'[a-zA-Z0-9]{2,}', t_str)
             for w in words:
                 if w not in clean_gamertags:
@@ -80,8 +79,6 @@ class KillfeedScanner:
         if detect_audio:
             audio_energies = AudioAnalyzer.analyze_audio_peaks(video_path)
             
-        # Normalizar escala interna a 1280x720 antes de recortar la zona Killfeed
-        # para que funcione EXACTAMENTE IGUAL en 720p, 1080p, 1440p y 4K
         crop_w, crop_h, crop_x, crop_y = 320, 120, 0, 290
         fps_rate = 0.66
         
@@ -101,11 +98,11 @@ class KillfeedScanner:
             ]
         
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW_FLAGS)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW_FLAGS)
         except Exception:
             if use_gpu:
                 cmd.pop(1); cmd.pop(1)
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=NO_WINDOW_FLAGS)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=NO_WINDOW_FLAGS)
             
         frame_len = crop_w * crop_h * 3
         idx = 0
@@ -124,40 +121,60 @@ class KillfeedScanner:
             if on_progress and (idx % 2 == 0 or (duration_sec > 0 and sec >= duration_sec)):
                 on_progress(sec, duration_sec, len(video_kills))
                 
-            # Detección de texto blanco en el Killfeed
             white_mask = cv2.inRange(frame, np.array([160, 160, 160]), np.array([255, 255, 255]))
             if cv2.countNonZero(white_mask) > 35:
                 res, _ = self.ocr(frame)
                 if res:
                     all_texts = [r[1] for r in res]
                     if not self.is_watermark_present(all_texts, filter_beta):
-                        for item in res:
+                        # Ordenar cajas de texto de izquierda a derecha
+                        res_sorted = sorted(res, key=lambda r: min(p[0] for p in r[0]))
+                        
+                        # Buscar si eres el atacante (lado izquierdo) y NO la víctima (lado derecho)
+                        is_my_kill = False
+                        matched_killer_text = None
+                        
+                        for r_idx, item in enumerate(res_sorted):
                             box, txt, score = item
                             clean_txt = re.sub(r'[^a-zA-Z0-9]', '', txt.lower())
                             
-                            # Comprobación de coincidencia con cualquiera de los gamertags
-                            matched = any(gt in clean_txt for gt in clean_gamertags if len(gt) >= 2)
-                            if matched:
+                            is_matched = any(gt in clean_txt for gt in clean_gamertags if len(gt) >= 2)
+                            if is_matched:
+                                min_x = min(p[0] for p in box)
                                 center_x = (box[0][0] + box[1][0]) / 2.0
-                                # Debe estar en el lado izquierdo del Killfeed (el atacante/asesino)
-                                if center_x < 160:
-                                    if sec - last_kill_sec >= 3.0:
-                                        last_kill_sec = sec
-                                        ts_str = str(timedelta(seconds=sec))
-                                        killer, dist, victim = self.parse_killfeed_line(all_texts, clean_gamertags)
-                                        
-                                        rec = KillRecord(
-                                            video_path=video_path,
-                                            video_name=v_name,
-                                            time_sec=sec,
-                                            timestamp=ts_str,
-                                            killer=killer,
-                                            distance=dist,
-                                            victim=victim,
-                                            frame_rgb=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                                        )
-                                        video_kills.append(rec)
+                                
+                                # Si tu nombre está en la primera posición a la izquierda (< 115px) es una baja tuya
+                                if r_idx == 0 and center_x < 120:
+                                    is_my_kill = True
+                                    matched_killer_text = txt
+                                    break
+                                elif r_idx == 1 and min_x < 90:
+                                    # Caso donde el primer token sea un clan tag [TAG]
+                                    prev_txt = res_sorted[0][1].strip()
+                                    if prev_txt.startswith('[') or len(prev_txt) <= 5:
+                                        is_my_kill = True
+                                        matched_killer_text = txt
                                         break
+                                # Si tu nombre aparece a la derecha de otro jugador (r_idx > 1 o center_x >= 120), significa que tú has muerto
+                                # por lo que se ignora explícitamente.
+                                
+                        if is_my_kill:
+                            if sec - last_kill_sec >= 3.0:
+                                last_kill_sec = sec
+                                ts_str = str(timedelta(seconds=sec))
+                                killer, dist, victim = self.parse_killfeed_line(res_sorted, clean_gamertags)
+                                
+                                rec = KillRecord(
+                                    video_path=video_path,
+                                    video_name=v_name,
+                                    time_sec=sec,
+                                    timestamp=ts_str,
+                                    killer=killer,
+                                    distance=dist,
+                                    victim=victim,
+                                    frame_rgb=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                                )
+                                video_kills.append(rec)
             idx += 1
             
         try:
@@ -166,8 +183,7 @@ class KillfeedScanner:
         except Exception:
             pass
             
-        # Post-procesar multikills y nivel de intensidad
-        multi_window = 20
+        # Post-procesar multikills usando la ventana configurable
         for i, k in enumerate(video_kills):
             streak = 1
             for j in range(i - 1, -1, -1):
