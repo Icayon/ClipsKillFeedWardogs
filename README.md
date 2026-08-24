@@ -5,7 +5,7 @@
 # Clips KillFeed Wardogs
 **Herramienta de detección de bajas y generación automática de clips para Wardogs**
 
-[![Release](https://img.shields.io/github/v/release/Icayon/Clips-KillFeed-Wardogs?color=2563eb&style=flat-square)](https://github.com/Icayon/Clips-KillFeed-Wardogs/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Icayon/ClipsKillFeedWardogs?color=2563eb&style=flat-square)](https://github.com/Icayon/ClipsKillFeedWardogs/releases/latest)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Twitch](https://img.shields.io/badge/Twitch-icayon-9146FF?style=flat-square&logo=twitch&logoColor=white)](https://www.twitch.tv/icayon)
@@ -44,8 +44,8 @@
 Este proyecto utiliza uv como gestor de entorno y dependencias.
 
 `ash
-git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
-cd Clips-KillFeed-Wardogs
+git clone https://github.com/Icayon/ClipsKillFeedWardogs.git
+cd ClipsKillFeedWardogs
 uv run AutoClip_AI.py
 `
 
@@ -84,8 +84,8 @@ Este proyecto está bajo la Licencia MIT. Se autoriza el uso, modificación y di
 
 #### Option 2: Run from Source (via uv)
 `ash
-git clone https://github.com/Icayon/Clips-KillFeed-Wardogs.git
-cd Clips-KillFeed-Wardogs
+git clone https://github.com/Icayon/ClipsKillFeedWardogs.git
+cd ClipsKillFeedWardogs
 uv run AutoClip_AI.py
 `
 

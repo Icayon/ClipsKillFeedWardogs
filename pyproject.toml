@@ -1,7 +1,7 @@
 ﻿[project]
-name = "clips-killfeed-wardogs"
-version = "1.0.0"
-description = "Detector Inteligente de Bajas por IA y Editor Automático de Clips para Wardogs"
+name = "clipskillfeedwardogs"
+version = "1.1.0"
+description = "Detector Inteligente de Bajas por IA y Editor Automatico de Clips para Wardogs"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Icayon/Clips-KillFeed-Wardogs"
+Homepage = "https://github.com/Icayon/ClipsKillFeedWardogs"
 Twitch = "https://www.twitch.tv/icayon"
 Twitter = "https://x.com/ICayonh"
 
